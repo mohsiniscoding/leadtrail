@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+
+{% block title %}SERP Settings | {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="bg-white shadow rounded-lg">
+  <div class="px-6 py-4 border-b border-gray-200">
+    <h1 class="text-2xl font-semibold text-gray-900">SERP Settings</h1>
+  </div>
+
+  <!-- SERP Excluded Domains Section -->
+  <div class="px-6 py-4 border-b border-gray-200">
+    <h2 class="text-xl font-medium text-gray-900 mb-2">SERP Excluded Domains (Total: {{ serp_excluded_domains.count }})</h2>
+    <p class="text-gray-600 mb-4">
+      Domains to exclude from SERP results. The domains you add here will be added to SERP query as "-site:domain1 -site:domain2" and so on.
+      Keep the list to max 15 domains otherwise search engine may ignore some of the exclusions.
+    </p>
+
+    <!-- Add Domain Form -->
+    <form method="post" class="mb-6">
+      {% csrf_token %}
+      <input type="hidden" name="domain_type" value="serp">
+      <div class="flex flex-col md:flex-row gap-4">
+        <div class="flex-grow">
+          <label for="serp_domain" class="block text-sm font-medium text-gray-700 mb-1">Enter SERP Excluded Domain</label>
+          <input type="text" name="domain" id="serp_domain" class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border border-gray-300 rounded-md py-2 px-3" placeholder="example.com">
+        </div>
+        <div class="flex items-end">
+          <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            Add Domain
+          </button>
+        </div>
+      </div>
+    </form>
+
+    <!-- Domains List -->
+    <div class="flex flex-wrap gap-2 mb-4">
+      {% for domain in serp_excluded_domains %}
+        <div class="inline-flex items-center bg-gray-100 rounded-full px-3 py-1 text-sm font-medium text-gray-800">
+          {{ domain.domain }}
+          <button type="button" class="ml-1 text-gray-500 hover:text-red-500 focus:outline-none" 
+                  onclick="confirmDeleteDomain('{{ domain.id }}', 'serp', '{{ domain.domain }}')">
+            <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+            </svg>
+          </button>
+        </div>
+      {% empty %}
+        <p class="text-gray-500 italic">No domains added yet.</p>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Search Keywords Section -->
+  <div class="px-6 py-4 border-b border-gray-200">
+    <h2 class="text-xl font-medium text-gray-900 mb-2">Search Keywords (Total: {{ search_keywords.count }})</h2>
+    <p class="text-gray-600 mb-4">
+      Keywords used for searching relevant pages on company websites. These help identify pages that contain company information, contact details, and other relevant data.
+    </p>
+
+    <!-- Add Keyword Form -->
+    <form method="post" class="mb-6">
+      {% csrf_token %}
+      <input type="hidden" name="form_type" value="keyword">
+      <div class="flex flex-col md:flex-row gap-4">
+        <div class="flex-grow">
+          <label for="search_keyword" class="block text-sm font-medium text-gray-700 mb-1">Enter Search Keyword</label>
+          <input type="text" name="keyword" id="search_keyword" class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border border-gray-300 rounded-md py-2 px-3" placeholder="privacy policy" required>
+        </div>
+        <div class="flex items-end">
+          <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+            Add Keyword
+          </button>
+        </div>
+      </div>
+    </form>
+
+    <!-- Keywords List -->
+    <div class="flex flex-wrap gap-2 mb-4">
+      {% for keyword in search_keywords %}
+        <div class="inline-flex items-center bg-green-100 rounded-full px-3 py-1 text-sm font-medium text-green-800">
+          {{ keyword.keyword }}
+          <button type="button" class="ml-1 text-green-600 hover:text-red-500 focus:outline-none" 
+                  onclick="confirmDeleteKeyword('{{ keyword.id }}', 'keyword', '{{ keyword.keyword }}')">
+            <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+            </svg>
+          </button>
+        </div>
+      {% empty %}
+        <p class="text-gray-500 italic">No keywords added yet.</p>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Blacklist Domains Section -->
+  <div class="px-6 py-4">
+    <h2 class="text-xl font-medium text-gray-900 mb-2">Blacklist Domains (Total: {{ blacklist_domains.count }})</h2>
+    <p class="text-gray-600 mb-4">
+      The domains you add here will be used by website crawler to filter domains before crawling.
+      We add domains here when the above limit is exceeded.
+    </p>
+
+    <!-- Add Domain Form -->
+    <form method="post" class="mb-6">
+      {% csrf_token %}
+      <input type="hidden" name="domain_type" value="blacklist">
+      <div class="flex flex-col md:flex-row gap-4">
+        <div class="flex-grow">
+          <label for="blacklist_domain" class="block text-sm font-medium text-gray-700 mb-1">Enter Blacklist Domain</label>
+          <input type="text" name="domain" id="blacklist_domain" class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border border-gray-300 rounded-md py-2 px-3" placeholder="example.com">
+        </div>
+        <div class="flex items-end">
+          <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            Add Domain
+          </button>
+        </div>
+      </div>
+    </form>
+
+    <!-- Domains List -->
+    <div class="flex flex-wrap gap-2">
+      {% for domain in blacklist_domains %}
+        <div class="inline-flex items-center bg-gray-100 rounded-full px-3 py-1 text-sm font-medium text-gray-800">
+          {{ domain.domain }}
+          <button type="button" class="ml-1 text-gray-500 hover:text-red-500 focus:outline-none" 
+                  onclick="confirmDeleteDomain('{{ domain.id }}', 'blacklist', '{{ domain.domain }}')">
+            <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+            </svg>
+          </button>
+        </div>
+      {% empty %}
+        <p class="text-gray-500 italic">No domains added yet.</p>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteModal" class="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center hidden z-50">
+  <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
+    <div class="px-6 py-4 border-b border-gray-200">
+      <h3 class="text-lg font-medium text-gray-900">Confirm Deletion</h3>
+    </div>
+    <div class="px-6 py-4">
+      <p class="text-gray-600">Are you sure you want to delete <span id="itemToDelete" class="font-medium"></span>?</p>
+      <p class="text-gray-600 mt-2">This action does not apply on the companies processed already.</p>
+    </div>
+    <div class="px-6 py-3 bg-gray-50 flex justify-end space-x-3 rounded-b-lg">
+      <button type="button" id="cancelDelete" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+        Cancel
+      </button>
+      <form id="deleteForm" method="post" action="{% url 'portal:delete_domain' %}">
+        {% csrf_token %}
+        <input type="hidden" id="domainId" name="domain_id">
+        <input type="hidden" id="domainType" name="domain_type">
+        <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+          Delete
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock content %}
+
+{% block inline_javascript %}
+<script>
+  window.addEventListener('DOMContentLoaded', () => {
+    const deleteModal = document.getElementById('deleteModal');
+    const cancelDelete = document.getElementById('cancelDelete');
+    
+    // Close modal when Cancel is clicked
+    cancelDelete.addEventListener('click', () => {
+      deleteModal.classList.add('hidden');
+    });
+    
+    // Close modal when clicking outside
+    deleteModal.addEventListener('click', (event) => {
+      if (event.target === deleteModal) {
+        deleteModal.classList.add('hidden');
+      }
+    });
+  });
+  
+  function confirmDeleteDomain(id, type, domain) {
+    const deleteModal = document.getElementById('deleteModal');
+    const itemToDelete = document.getElementById('itemToDelete');
+    const domainId = document.getElementById('domainId');
+    const domainType = document.getElementById('domainType');
+    
+    itemToDelete.textContent = domain;
+    domainId.value = id;
+    domainType.value = type;
+    
+    deleteModal.classList.remove('hidden');
+  }
+  
+  function confirmDeleteKeyword(id, type, keyword) {
+    const deleteModal = document.getElementById('deleteModal');
+    const itemToDelete = document.getElementById('itemToDelete');
+    const domainId = document.getElementById('domainId');
+    const domainType = document.getElementById('domainType');
+    
+    itemToDelete.textContent = keyword;
+    domainId.value = id;
+    domainType.value = type;
+    
+    deleteModal.classList.remove('hidden');
+  }
+</script>
+{% endblock inline_javascript %}
