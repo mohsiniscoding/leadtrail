@@ -67,6 +67,15 @@ class Campaign(models.Model):
         completed = self.company_numbers.filter(vat_lookup__isnull=False).count()
         return round((completed / total) * 100)
 
+    @property
+    def website_hunting_progress(self):
+        """Calculate progress percentage of Website Hunting."""
+        total = self.company_numbers.count()
+        if total == 0:
+            return 0
+        completed = self.company_numbers.filter(website_hunting_result__isnull=False).count()
+        return round((completed / total) * 100)
+
 
 class CompanyNumber(models.Model):
     """
@@ -530,3 +539,66 @@ class SearchKeyword(models.Model):
     def __str__(self) -> str:
         """String representation of the search keyword."""
         return self.keyword
+
+
+class WebsiteHuntingResult(models.Model):
+    """
+    Results from website hunting process including SERP discovery and crawler ranking.
+    Stores both the domains found via SERP and their rankings from the crawler.
+    """
+    company_number = models.OneToOneField(
+        CompanyNumber,
+        on_delete=models.CASCADE,
+        related_name="website_hunting_result",
+        help_text=_("The company number this website hunting result belongs to")
+    )
+    domains_found = models.JSONField(
+        _("Domains Found"),
+        default=list,
+        help_text=_("List of domains found via SERP search")
+    )
+    ranked_domains = models.JSONField(
+        _("Ranked Domains"),
+        default=list,
+        help_text=_("List of domains ranked by crawler with scores")
+    )
+    serp_status = models.CharField(
+        _("SERP Status"),
+        max_length=50,
+        help_text=_("Status of SERP search phase")
+    )
+    crawl_status = models.CharField(
+        _("Crawl Status"),
+        max_length=50,
+        help_text=_("Status of website crawling phase")
+    )
+    processing_notes = models.TextField(
+        _("Processing Notes"),
+        help_text=_("Notes about the website hunting process")
+    )
+    approved_domain = models.CharField(
+        _("Approved Domain"),
+        max_length=255,
+        null=True,
+        blank=True,
+        help_text=_("The domain approved by human review")
+    )
+    approved_by_human = models.BooleanField(
+        _("Approved by Human"),
+        default=False,
+        help_text=_("Whether the results have been approved by human review")
+    )
+    created_at = models.DateTimeField(
+        _("Created at"),
+        auto_now_add=True
+    )
+
+    class Meta:
+        verbose_name = _("Website Hunting Result")
+        verbose_name_plural = _("Website Hunting Results")
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        """String representation of the website hunting result."""
+        domain_count = len(self.domains_found) if self.domains_found else 0
+        return f"Website hunting for {self.company_number.company_number} ({domain_count} domains found)"

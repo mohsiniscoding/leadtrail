@@ -10,7 +10,7 @@ from django.utils.decorators import method_decorator
 from django.views.generic import ListView, TemplateView
 from django.views.decorators.http import require_POST
 
-from .models import Campaign, CompanyNumber, SERPExcludedDomain, BlacklistDomain, ZenSERPQuota, SearchKeyword
+from .models import Campaign, CompanyNumber, SERPExcludedDomain, BlacklistDomain, ZenSERPQuota, SearchKeyword, WebsiteHuntingResult
 
 
 @method_decorator(login_required, name='dispatch')
@@ -188,3 +188,85 @@ def delete_domain(request):
     except Exception as e:
         messages.error(request, f"Error removing item: {str(e)}")
         return HttpResponseRedirect(reverse('portal:serp_settings'))
+
+
+@method_decorator(login_required, name='dispatch')
+class WebsiteHumanReviewView(ListView):
+    """
+    View for human review of website hunting results.
+    """
+    model = CompanyNumber
+    template_name = "portal/website_human_review.html"
+    context_object_name = "companies"
+    paginate_by = 10
+    
+    def get_queryset(self):
+        """Get companies for the specified campaign, ordered by creation date."""
+        campaign_id = self.kwargs.get('campaign_id')
+        return CompanyNumber.objects.filter(
+            campaign_id=campaign_id
+        ).select_related(
+            'house_data', 'vat_lookup', 'website_hunting_result'
+        ).order_by('created_at')
+    
+    def get_paginate_by(self, queryset):
+        """Allow dynamic pagination based on URL parameter."""
+        per_page = self.request.GET.get('per_page', self.paginate_by)
+        try:
+            per_page = int(per_page)
+            if per_page in [10, 25, 50]:
+                return per_page
+        except (ValueError, TypeError):
+            pass
+        return self.paginate_by
+    
+    def get_context_data(self, **kwargs):
+        """Add campaign and pagination context."""
+        context = super().get_context_data(**kwargs)
+        campaign_id = self.kwargs.get('campaign_id')
+        campaign = Campaign.objects.get(id=campaign_id)
+        
+        context['campaign'] = campaign
+        context['per_page_options'] = [10, 25, 50]
+        context['current_per_page'] = self.get_paginate_by(None)
+        
+        return context
+    
+    def post(self, request, *args, **kwargs):
+        """Handle approval and blacklist actions."""
+        action = request.POST.get('action')
+        company_id = request.POST.get('company_id')
+        domain = request.POST.get('domain')
+        
+        try:
+            company = CompanyNumber.objects.get(id=company_id)
+            
+            if action == 'approve':
+                # Approve domain
+                hunting_result = company.website_hunting_result
+                hunting_result.approved_domain = domain
+                hunting_result.approved_by_human = True
+                hunting_result.save()
+                
+                messages.success(request, f"Domain '{domain}' approved for company {company.company_number}")
+                
+            elif action == 'blacklist':
+                # Add domain to blacklist
+                BlacklistDomain.objects.get_or_create(domain=domain)
+                messages.success(request, f"Domain '{domain}' added to blacklist")
+                
+            else:
+                messages.error(request, "Invalid action")
+                
+        except CompanyNumber.DoesNotExist:
+            messages.error(request, "Company not found")
+        except Exception as e:
+            messages.error(request, f"Error processing request: {str(e)}")
+        
+        # Redirect back to the same page with current pagination
+        campaign_id = self.kwargs.get('campaign_id')
+        page = request.GET.get('page', 1)
+        per_page = request.GET.get('per_page', 10)
+        
+        redirect_url = reverse('portal:website_human_review', kwargs={'campaign_id': campaign_id})
+        return HttpResponseRedirect(f"{redirect_url}?page={page}&per_page={per_page}")

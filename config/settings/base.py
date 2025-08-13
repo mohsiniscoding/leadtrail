@@ -333,18 +333,18 @@ SOCIALACCOUNT_FORMS = {"signup": "leadtrail.users.forms.UserSocialSignupForm"}
 ## Tasks
 ## Schedule tasks to run at different intervals
 CELERY_BEAT_SCHEDULE = {
-    "companies-house-lookup": {
-        "task": "leadtrail.portal.tasks.task_companies_house_lookup.run",
-        "schedule": crontab(minute="*/1"),
-    },
+    # "companies-house-lookup": {
+    #     "task": "leadtrail.portal.tasks.task_companies_house_lookup.run",
+    #     "schedule": crontab(minute="*/1"),
+    # },
     # "vat-lookup": {
     #     "task": "leadtrail.portal.tasks.task_vat_lookup.run",
     #     "schedule": crontab(minute="*/1"),
     # },
-    # "website-hunting": {
-    #     "task": "leadtrail.portal.tasks.task_website_hunting.run",
-    #     "schedule": crontab(minute="*/3"),
-    # },
+    "website-hunting": {
+        "task": "leadtrail.portal.tasks.task_website_hunting.run",
+        "schedule": crontab(minute="*/1"),
+    },
     # "website-contact-finder": {
     #     "task": "leadtrail.portal.tasks.task_website_contact_finder.run",
     #     "schedule": crontab(minute="*/4"),

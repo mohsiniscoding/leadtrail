@@ -1,0 +1,313 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+  Website Human Review - {{ campaign.name }} - LeadTrail
+{% endblock title %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+  <div class="mb-6">
+    <div class="flex items-center justify-between">
+      <div>
+        <h1 class="text-2xl font-bold text-gray-800">Website Human Review</h1>
+        <p class="text-gray-600 mt-1">Campaign: <span class="font-medium">{{ campaign.name }}</span></p>
+      </div>
+      <a href="{% url 'portal:home' %}" class="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors">
+        ← Back to Campaigns
+      </a>
+    </div>
+  </div>
+
+  <!-- Pagination Controls -->
+  <div class="mb-6 flex items-center justify-between">
+    <div class="flex items-center space-x-2">
+      <label for="per_page" class="text-sm text-gray-600">Results per page:</label>
+      <select id="per_page" class="px-3 py-1 border border-gray-300 rounded text-sm">
+        {% for option in per_page_options %}
+          <option value="{{ option }}" {% if option == current_per_page %}selected{% endif %}>{{ option }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    
+    {% if page_obj %}
+    <div class="text-sm text-gray-600">
+      Showing {{ page_obj.start_index }}-{{ page_obj.end_index }} of {{ page_obj.paginator.count }} companies
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Company Cards -->
+  <div class="space-y-6">
+    {% for company in companies %}
+    <div class="bg-white shadow-md rounded-lg p-6 border border-gray-200">
+      <!-- Company Header -->
+      <div class="mb-4 pb-4 border-b border-gray-100">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="text-lg font-semibold text-gray-900">Company {{ company.company_number }}</h3>
+            <div class="mt-1 space-y-1">
+              {% if company.house_data and company.house_data.company_name %}
+                <p class="text-sm text-gray-600">
+                  <span class="font-medium">Name:</span> {{ company.house_data.company_name }}
+                </p>
+              {% endif %}
+              {% if company.vat_lookup and company.vat_lookup.vat_number and company.vat_lookup.vat_number != "NOT_FOUND" %}
+                <p class="text-sm text-gray-600">
+                  <span class="font-medium">VAT:</span> {{ company.vat_lookup.vat_number }}
+                </p>
+              {% endif %}
+            </div>
+          </div>
+          
+          <!-- Processing Status Badge -->
+          <div>
+            {% if company.website_hunting_result %}
+              {% if company.website_hunting_result.approved_by_human %}
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                  ✓ Approved
+                </span>
+              {% else %}
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                  Pending Review
+                </span>
+              {% endif %}
+            {% else %}
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                Not Processed
+              </span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Website Hunting Results -->
+      {% if company.website_hunting_result %}
+        <div class="space-y-4">
+          <h4 class="font-medium text-gray-900">Website Hunting Results</h4>
+          
+          {% if company.website_hunting_result.approved_by_human %}
+            <!-- Already Approved Section -->
+            <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h5 class="font-medium text-green-900">Approved Domain</h5>
+                  <p class="text-green-700 mt-1">{{ company.website_hunting_result.approved_domain }}</p>
+                </div>
+                <button onclick="showChangeApprovalModal('{{ company.id }}', '{{ company.website_hunting_result.approved_domain }}')" 
+                        class="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors">
+                  Change Approval
+                </button>
+              </div>
+            </div>
+          {% endif %}
+
+          <!-- Ranked Domains -->
+          {% if company.website_hunting_result.ranked_domains %}
+            <div>
+              <h5 class="font-medium text-gray-900 mb-3">Found Domains ({{ company.website_hunting_result.ranked_domains|length }})</h5>
+              <div class="grid gap-3">
+                {% for domain_result in company.website_hunting_result.ranked_domains %}
+                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
+                  <div class="flex-1">
+                    <div class="flex items-center space-x-3">
+                      <span class="font-medium text-gray-900">{{ domain_result.domain }}</span>
+                      <span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                        Score: {{ domain_result.score|floatformat:2 }}
+                      </span>
+                      <span class="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
+                        {{ domain_result.pages_crawled }} pages
+                      </span>
+                    </div>
+                    {% if domain_result.match_summary %}
+                      <p class="text-sm text-gray-600 mt-1">{{ domain_result.match_summary }}</p>
+                    {% endif %}
+                  </div>
+                  
+                  {% if not company.website_hunting_result.approved_by_human %}
+                    <div class="flex space-x-2">
+                      <button onclick="showApprovalModal('{{ company.id }}', '{{ domain_result.domain }}')" 
+                              class="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors">
+                        Approve
+                      </button>
+                      <button onclick="showBlacklistModal('{{ company.id }}', '{{ domain_result.domain }}')" 
+                              class="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors">
+                        Blacklist
+                      </button>
+                    </div>
+                  {% endif %}
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+          {% else %}
+            <!-- No Domains Found -->
+            <div class="text-center py-8 text-gray-500">
+              <p>No domains found during website hunting</p>
+              <p class="text-sm mt-1">Status: {{ company.website_hunting_result.serp_status }} / {{ company.website_hunting_result.crawl_status }}</p>
+            </div>
+          {% endif %}
+        </div>
+      {% else %}
+        <!-- Not Processed -->
+        <div class="text-center py-8 text-gray-500">
+          <p>Website hunting not yet processed for this company</p>
+          <p class="text-sm mt-1">Results will appear here once the background worker processes this company</p>
+        </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Empty State -->
+  {% if not companies %}
+  <div class="text-center py-12">
+    <p class="text-gray-500">No companies found in this campaign.</p>
+  </div>
+  {% endif %}
+
+  <!-- Pagination -->
+  {% if page_obj.has_other_pages %}
+  <div class="mt-8 flex items-center justify-between">
+    <div class="flex items-center space-x-2">
+      {% if page_obj.has_previous %}
+        <a href="?page=1&per_page={{ current_per_page }}" class="px-3 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300">
+          First
+        </a>
+        <a href="?page={{ page_obj.previous_page_number }}&per_page={{ current_per_page }}" class="px-3 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300">
+          Previous
+        </a>
+      {% endif %}
+    </div>
+    
+    <div class="text-sm text-gray-600">
+      Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+    </div>
+    
+    <div class="flex items-center space-x-2">
+      {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}&per_page={{ current_per_page }}" class="px-3 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300">
+          Next
+        </a>
+        <a href="?page={{ page_obj.paginator.num_pages }}&per_page={{ current_per_page }}" class="px-3 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300">
+          Last
+        </a>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Approval Modal -->
+<div id="approvalModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50">
+  <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+    <div class="p-6">
+      <h3 class="text-lg font-medium text-gray-900 mb-4">Approve Domain</h3>
+      <p class="text-gray-600 mb-6">
+        Are you sure you want to approve <span id="approvalDomain" class="font-medium"></span> for company <span id="approvalCompany" class="font-medium"></span>?
+      </p>
+      <div class="flex justify-end space-x-3">
+        <button onclick="hideApprovalModal()" class="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300">
+          Cancel
+        </button>
+        <button onclick="submitApproval()" class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
+          Approve
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Blacklist Modal -->
+<div id="blacklistModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50">
+  <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+    <div class="p-6">
+      <h3 class="text-lg font-medium text-gray-900 mb-4">Add to Blacklist</h3>
+      <p class="text-gray-600 mb-6">
+        Are you sure you want to add <span id="blacklistDomain" class="font-medium"></span> to the blacklist? This will prevent it from appearing in future website hunting results.
+      </p>
+      <div class="flex justify-end space-x-3">
+        <button onclick="hideBlacklistModal()" class="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300">
+          Cancel
+        </button>
+        <button onclick="submitBlacklist()" class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">
+          Add to Blacklist
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Hidden Form for Submissions -->
+<form id="actionForm" method="post" style="display: none;">
+  {% csrf_token %}
+  <input type="hidden" name="action" id="actionType">
+  <input type="hidden" name="company_id" id="actionCompanyId">
+  <input type="hidden" name="domain" id="actionDomain">
+</form>
+
+<script>
+// Per-page selector
+document.getElementById('per_page').addEventListener('change', function() {
+  const url = new URL(window.location);
+  url.searchParams.set('per_page', this.value);
+  url.searchParams.set('page', '1'); // Reset to first page
+  window.location.href = url.toString();
+});
+
+// Modal functions
+let currentCompanyId = null;
+let currentDomain = null;
+
+function showApprovalModal(companyId, domain) {
+  currentCompanyId = companyId;
+  currentDomain = domain;
+  document.getElementById('approvalDomain').textContent = domain;
+  document.getElementById('approvalCompany').textContent = companyId;
+  document.getElementById('approvalModal').classList.remove('hidden');
+}
+
+function hideApprovalModal() {
+  document.getElementById('approvalModal').classList.add('hidden');
+}
+
+function showBlacklistModal(companyId, domain) {
+  currentCompanyId = companyId;
+  currentDomain = domain;
+  document.getElementById('blacklistDomain').textContent = domain;
+  document.getElementById('blacklistModal').classList.remove('hidden');
+}
+
+function hideBlacklistModal() {
+  document.getElementById('blacklistModal').classList.add('hidden');
+}
+
+function showChangeApprovalModal(companyId, currentApprovedDomain) {
+  // For changing approval, we show the approval modal with current domain
+  showApprovalModal(companyId, currentApprovedDomain);
+}
+
+function submitApproval() {
+  document.getElementById('actionType').value = 'approve';
+  document.getElementById('actionCompanyId').value = currentCompanyId;
+  document.getElementById('actionDomain').value = currentDomain;
+  document.getElementById('actionForm').submit();
+}
+
+function submitBlacklist() {
+  document.getElementById('actionType').value = 'blacklist';
+  document.getElementById('actionCompanyId').value = currentCompanyId;
+  document.getElementById('actionDomain').value = currentDomain;
+  document.getElementById('actionForm').submit();
+}
+
+// Close modals when clicking outside
+document.getElementById('approvalModal').addEventListener('click', function(e) {
+  if (e.target === this) hideApprovalModal();
+});
+
+document.getElementById('blacklistModal').addEventListener('click', function(e) {
+  if (e.target === this) hideBlacklistModal();
+});
+</script>
+{% endblock content %}

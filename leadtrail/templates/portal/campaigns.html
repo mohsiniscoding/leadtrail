@@ -51,19 +51,10 @@
           <div>
             <div class="flex justify-between text-sm mb-1">
               <span class="text-gray-600">Website Hunting</span>
-              <span class="text-gray-800 font-medium">45%</span>
+              <span class="text-gray-800 font-medium">{{ campaign.website_hunting_progress }}%</span>
             </div>
             <div class="w-full h-2 bg-gray-200 rounded-full">
-              <div class="h-full rounded-full bg-green-500" style="width: 45%"></div>
-            </div>
-          </div>
-          <div>
-            <div class="flex justify-between text-sm mb-1">
-              <span class="text-gray-600">Website Human Review</span>
-              <span class="text-gray-800 font-medium">30%</span>
-            </div>
-            <div class="w-full h-2 bg-gray-200 rounded-full">
-              <div class="h-full rounded-full bg-green-500" style="width: 30%"></div>
+              <div class="h-full rounded-full bg-green-500" style="width: {{ campaign.website_hunting_progress }}%"></div>
             </div>
           </div>
           <div>
@@ -86,7 +77,7 @@
           </div>
         </div>
         <div class="mt-4 flex justify-between ">
-          <button class="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors">Website Human Review</button>
+          <a href="{% url 'portal:website_human_review' campaign.id %}" class="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors no-underline">Website Human Review</a>
           <button class="px-3 py-1 bg-gray-600 text-white text-sm rounded hover:bg-gray-700 transition-colors">Export Results</button>
         </div>
       </div>

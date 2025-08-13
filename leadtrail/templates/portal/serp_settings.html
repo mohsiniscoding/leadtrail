@@ -55,7 +55,8 @@
   <div class="px-6 py-4 border-b border-gray-200">
     <h2 class="text-xl font-medium text-gray-900 mb-2">Search Keywords (Total: {{ search_keywords.count }})</h2>
     <p class="text-gray-600 mb-4">
-      Keywords used for searching relevant pages on company websites. These help identify pages that contain company information, contact details, and other relevant data.
+      Keywords used in SERP search to find company websites, i.e. (inurl:keyword1 OR inurl:keyword2 OR inurl:keyword3)
+
     </p>
 
     <!-- Add Keyword Form -->
@@ -68,7 +69,7 @@
           <input type="text" name="keyword" id="search_keyword" class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border border-gray-300 rounded-md py-2 px-3" placeholder="privacy policy" required>
         </div>
         <div class="flex items-end">
-          <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+          <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
             Add Keyword
           </button>
         </div>
@@ -78,9 +79,9 @@
     <!-- Keywords List -->
     <div class="flex flex-wrap gap-2 mb-4">
       {% for keyword in search_keywords %}
-        <div class="inline-flex items-center bg-green-100 rounded-full px-3 py-1 text-sm font-medium text-green-800">
+        <div class="inline-flex items-center bg-gray-100 rounded-full px-3 py-1 text-sm font-medium text-gray-800">
           {{ keyword.keyword }}
-          <button type="button" class="ml-1 text-green-600 hover:text-red-500 focus:outline-none" 
+          <button type="button" class="ml-1 text-gray-500 hover:text-red-500 focus:outline-none" 
                   onclick="confirmDeleteKeyword('{{ keyword.id }}', 'keyword', '{{ keyword.keyword }}')">
             <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
               <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
