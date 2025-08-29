@@ -1,0 +1,5 @@
+1. Approve website Title should be clickable anchor to a new tab
+2. Indicator to confirm a domain is added to blacklist
+3. Output: Record per company  1. Add snov on linkedin approve level
+4. add hunter.io on approve website level
+5. Add review and approve feature to linkedin lookup results

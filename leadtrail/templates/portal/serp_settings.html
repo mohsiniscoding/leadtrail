@@ -3,137 +3,225 @@
 {% block title %}SERP Settings | {{ block.super }}{% endblock %}
 
 {% block content %}
-<div class="bg-white shadow rounded-lg">
-  <div class="px-6 py-4 border-b border-gray-200">
-    <h1 class="text-2xl font-semibold text-gray-900">SERP Settings</h1>
-  </div>
-
-  <!-- SERP Excluded Domains Section -->
-  <div class="px-6 py-4 border-b border-gray-200">
-    <h2 class="text-xl font-medium text-gray-900 mb-2">SERP Excluded Domains (Total: {{ serp_excluded_domains.count }})</h2>
-    <p class="text-gray-600 mb-4">
-      Domains to exclude from SERP results. The domains you add here will be added to SERP query as "-site:domain1 -site:domain2" and so on.
-      Keep the list to max 15 domains otherwise search engine may ignore some of the exclusions.
-    </p>
-
-    <!-- Add Domain Form -->
-    <form method="post" class="mb-6">
-      {% csrf_token %}
-      <input type="hidden" name="domain_type" value="serp">
-      <div class="flex flex-col md:flex-row gap-4">
-        <div class="flex-grow">
-          <label for="serp_domain" class="block text-sm font-medium text-gray-700 mb-1">Enter SERP Excluded Domain</label>
-          <input type="text" name="domain" id="serp_domain" class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border border-gray-300 rounded-md py-2 px-3" placeholder="example.com">
-        </div>
-        <div class="flex items-end">
-          <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-            Add Domain
-          </button>
-        </div>
-      </div>
-    </form>
-
-    <!-- Domains List -->
-    <div class="flex flex-wrap gap-2 mb-4">
-      {% for domain in serp_excluded_domains %}
-        <div class="inline-flex items-center bg-gray-100 rounded-full px-3 py-1 text-sm font-medium text-gray-800">
-          {{ domain.domain }}
-          <button type="button" class="ml-1 text-gray-500 hover:text-red-500 focus:outline-none" 
-                  onclick="confirmDeleteDomain('{{ domain.id }}', 'serp', '{{ domain.domain }}')">
-            <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
-            </svg>
-          </button>
-        </div>
-      {% empty %}
-        <p class="text-gray-500 italic">No domains added yet.</p>
-      {% endfor %}
+<div class="max-w-7xl mx-auto space-y-6">
+  <!-- Page Header -->
+  <div class="bg-white shadow rounded-lg">
+    <div class="px-6 py-4">
+      <h1 class="text-2xl font-semibold text-gray-900">SERP Settings</h1>
+      <p class="mt-1 text-sm text-gray-600">Configure search keywords, domain exclusions, and blacklist settings for website hunting.</p>
     </div>
   </div>
 
-  <!-- Search Keywords Section -->
-  <div class="px-6 py-4 border-b border-gray-200">
-    <h2 class="text-xl font-medium text-gray-900 mb-2">Search Keywords (Total: {{ search_keywords.count }})</h2>
-    <p class="text-gray-600 mb-4">
-      Keywords used in SERP search to find company websites, i.e. (inurl:keyword1 OR inurl:keyword2 OR inurl:keyword3)
+  <!-- 1. Search Keywords Card -->
+  <div class="bg-white shadow rounded-lg">
+    <div class="px-6 py-4 border-b border-gray-200">
+      <h2 class="text-xl font-medium text-gray-900">Search Keywords</h2>
+      <p class="mt-1 text-sm text-gray-600">Total: {{ search_keywords.count }} keywords</p>
+    </div>
+    <div class="px-6 py-4">
+      <p class="text-gray-600 mb-4">
+        Keywords used in SERP search to find company websites, i.e. (inurl:keyword1 OR inurl:keyword2 OR inurl:keyword3)
+      </p>
 
-    </p>
+      <!-- Add Keyword Form -->
+      <form method="post" class="mb-6">
+        {% csrf_token %}
+        <input type="hidden" name="form_type" value="keyword">
+        <div class="flex flex-col md:flex-row gap-4">
+          <div class="flex-grow">
+            <label for="search_keyword" class="block text-sm font-medium text-gray-700 mb-1">Enter Search Keyword</label>
+            <input type="text" name="keyword" id="search_keyword" class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border border-gray-300 rounded-md py-2 px-3" placeholder="privacy policy" required>
+          </div>
+          <div class="flex items-end">
+            <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+              Add Keyword
+            </button>
+          </div>
+        </div>
+      </form>
 
-    <!-- Add Keyword Form -->
-    <form method="post" class="mb-6">
-      {% csrf_token %}
-      <input type="hidden" name="form_type" value="keyword">
-      <div class="flex flex-col md:flex-row gap-4">
-        <div class="flex-grow">
-          <label for="search_keyword" class="block text-sm font-medium text-gray-700 mb-1">Enter Search Keyword</label>
-          <input type="text" name="keyword" id="search_keyword" class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border border-gray-300 rounded-md py-2 px-3" placeholder="privacy policy" required>
-        </div>
-        <div class="flex items-end">
-          <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-            Add Keyword
-          </button>
-        </div>
+      <!-- Keywords List -->
+      <div class="flex flex-wrap gap-2">
+        {% for keyword in search_keywords %}
+          <div class="inline-flex items-center bg-blue-50 border border-blue-200 rounded-full px-3 py-1 text-sm font-medium text-blue-800">
+            {{ keyword.keyword }}
+            <button type="button" class="ml-1 text-blue-500 hover:text-red-500 focus:outline-none" 
+                    onclick="confirmDeleteKeyword('{{ keyword.id }}', 'keyword', '{{ keyword.keyword }}')">
+              <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+              </svg>
+            </button>
+          </div>
+        {% empty %}
+          <p class="text-gray-500 italic">No keywords added yet.</p>
+        {% endfor %}
       </div>
-    </form>
-
-    <!-- Keywords List -->
-    <div class="flex flex-wrap gap-2 mb-4">
-      {% for keyword in search_keywords %}
-        <div class="inline-flex items-center bg-gray-100 rounded-full px-3 py-1 text-sm font-medium text-gray-800">
-          {{ keyword.keyword }}
-          <button type="button" class="ml-1 text-gray-500 hover:text-red-500 focus:outline-none" 
-                  onclick="confirmDeleteKeyword('{{ keyword.id }}', 'keyword', '{{ keyword.keyword }}')">
-            <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
-            </svg>
-          </button>
-        </div>
-      {% empty %}
-        <p class="text-gray-500 italic">No keywords added yet.</p>
-      {% endfor %}
     </div>
   </div>
 
-  <!-- Blacklist Domains Section -->
-  <div class="px-6 py-4">
-    <h2 class="text-xl font-medium text-gray-900 mb-2">Blacklist Domains (Total: {{ blacklist_domains.count }})</h2>
-    <p class="text-gray-600 mb-4">
-      The domains you add here will be used by website crawler to filter domains before crawling.
-      We add domains here when the above limit is exceeded.
-    </p>
+  <!-- 2. SERP Excluded Domains Card -->
+  <div class="bg-white shadow rounded-lg">
+    <div class="px-6 py-4 border-b border-gray-200">
+      <h2 class="text-xl font-medium text-gray-900">SERP Excluded Domains</h2>
+      <p class="mt-1 text-sm text-gray-600">Total: {{ serp_excluded_domains.count }} domains</p>
+    </div>
+    <div class="px-6 py-4">
+      <p class="text-gray-600 mb-4">
+        Domains to exclude from SERP results. The domains you add here will be added to SERP query as "-site:domain1 -site:domain2" and so on.
+        Keep the list to max 15 domains otherwise search engine may ignore some of the exclusions.
+      </p>
 
-    <!-- Add Domain Form -->
-    <form method="post" class="mb-6">
-      {% csrf_token %}
-      <input type="hidden" name="domain_type" value="blacklist">
-      <div class="flex flex-col md:flex-row gap-4">
-        <div class="flex-grow">
-          <label for="blacklist_domain" class="block text-sm font-medium text-gray-700 mb-1">Enter Blacklist Domain</label>
-          <input type="text" name="domain" id="blacklist_domain" class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border border-gray-300 rounded-md py-2 px-3" placeholder="example.com">
+      <!-- Add Domain Form -->
+      <form method="post" class="mb-6">
+        {% csrf_token %}
+        <input type="hidden" name="domain_type" value="serp">
+        <div class="flex flex-col md:flex-row gap-4">
+          <div class="flex-grow">
+            <label for="serp_domain" class="block text-sm font-medium text-gray-700 mb-1">Enter SERP Excluded Domain</label>
+            <input type="text" name="domain" id="serp_domain" class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border border-gray-300 rounded-md py-2 px-3" placeholder="example.com">
+          </div>
+          <div class="flex items-end">
+            <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+              Add Domain
+            </button>
+          </div>
         </div>
-        <div class="flex items-end">
-          <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-            Add Domain
-          </button>
+      </form>
+
+      <!-- Domains List -->
+      <div class="flex flex-wrap gap-2">
+        {% for domain in serp_excluded_domains %}
+          <div class="inline-flex items-center bg-red-50 border border-red-200 rounded-full px-3 py-1 text-sm font-medium text-red-800">
+            {{ domain.domain }}
+            <button type="button" class="ml-1 text-red-500 hover:text-red-700 focus:outline-none" 
+                    onclick="confirmDeleteDomain('{{ domain.id }}', 'serp', '{{ domain.domain }}')">
+              <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+              </svg>
+            </button>
+          </div>
+        {% empty %}
+          <p class="text-gray-500 italic">No domains added yet.</p>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. Domain Suggestions & Blacklist Card -->
+  <div class="bg-white shadow rounded-lg">
+    <div class="px-6 py-4 border-b border-gray-200">
+      <h2 class="text-xl font-medium text-gray-900">Domain Management</h2>
+      <p class="mt-1 text-sm text-gray-600">Suggestions and blacklist for domain filtering</p>
+    </div>
+    <div class="px-6 py-4">
+      <!-- Domain Suggestions Section -->
+      <div class="mb-8">
+        <h3 class="text-lg font-medium text-gray-900 mb-2">Domain Suggestions for Blacklist</h3>
+        <p class="text-gray-600 mb-4">
+          Most frequently found domains from website hunting results. Click "Add to Blacklist" to prevent these domains from appearing in future results.
+        </p>
+
+        <!-- Loading State -->
+        <div id="suggestions-loading" class="hidden">
+          <div class="flex items-center justify-center py-4">
+            <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+            <span class="ml-2 text-gray-600">Loading suggestions...</span>
+          </div>
+        </div>
+
+        <!-- Error State -->
+        <div id="suggestions-error" class="hidden bg-red-50 border border-red-200 rounded-md p-4 mb-4">
+          <div class="flex">
+            <div class="flex-shrink-0">
+              <svg class="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+              </svg>
+            </div>
+            <div class="ml-3">
+              <p class="text-sm text-red-800" id="suggestions-error-message"></p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Suggestions List -->
+        <div id="suggestions-container">
+          {% if domain_suggestions %}
+            <div class="flex flex-wrap gap-2 mb-4" id="suggestions-list">
+              {% for domain, frequency in domain_suggestions %}
+                <div class="inline-flex items-center bg-yellow-50 border border-yellow-200 rounded-full px-3 py-1 text-sm font-medium text-yellow-800" data-domain="{{ domain }}">
+                  <span class="mr-2">{{ domain }}</span>
+                  <span class="bg-yellow-200 text-yellow-800 text-xs px-2 py-0.5 rounded-full mr-2">{{ frequency }}</span>
+                  <button type="button" class="text-green-600 hover:text-green-800 focus:outline-none" 
+                          onclick="addSuggestedDomainToBlacklist('{{ domain }}')" 
+                          title="Add to blacklist">
+                    <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+                    </svg>
+                  </button>
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div id="no-suggestions" class="text-gray-500 italic mb-4">
+              No domain suggestions available. Suggestions appear as website hunting processes more companies.
+            </div>
+          {% endif %}
+        </div>
+
+        <!-- Refresh Button -->
+        <button type="button" id="refresh-suggestions" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 mb-6">
+          <svg class="h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd" />
+          </svg>
+          Refresh Suggestions
+        </button>
+      </div>
+
+      <!-- Blacklist Domains Section -->
+      <div class="border-t border-gray-200 pt-6">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-medium text-gray-900">Blacklist Domains</h3>
+          <span class="text-sm text-gray-500">Total: {{ blacklist_domains.count }} domains</span>
+        </div>
+        <p class="text-gray-600 mb-4">
+          The domains you add here will be used by website crawler to filter domains before crawling.
+          Domains are automatically added here when suggestions are accepted.
+        </p>
+
+        <!-- Add Domain Form -->
+        <form method="post" class="mb-6">
+          {% csrf_token %}
+          <input type="hidden" name="domain_type" value="blacklist">
+          <div class="flex flex-col md:flex-row gap-4">
+            <div class="flex-grow">
+              <label for="blacklist_domain" class="block text-sm font-medium text-gray-700 mb-1">Enter Blacklist Domain</label>
+              <input type="text" name="domain" id="blacklist_domain" class="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border border-gray-300 rounded-md py-2 px-3" placeholder="example.com">
+            </div>
+            <div class="flex items-end">
+              <button type="submit" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-gray-600 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
+                Add Domain
+              </button>
+            </div>
+          </div>
+        </form>
+
+        <!-- Blacklist Domains List -->
+        <div class="flex flex-wrap gap-2">
+          {% for domain in blacklist_domains %}
+            <div class="inline-flex items-center bg-gray-100 border border-gray-300 rounded-full px-3 py-1 text-sm font-medium text-gray-800">
+              {{ domain.domain }}
+              <button type="button" class="ml-1 text-gray-500 hover:text-red-500 focus:outline-none" 
+                      onclick="confirmDeleteDomain('{{ domain.id }}', 'blacklist', '{{ domain.domain }}')">
+                <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                </svg>
+              </button>
+            </div>
+          {% empty %}
+            <p class="text-gray-500 italic">No domains added yet.</p>
+          {% endfor %}
         </div>
       </div>
-    </form>
-
-    <!-- Domains List -->
-    <div class="flex flex-wrap gap-2">
-      {% for domain in blacklist_domains %}
-        <div class="inline-flex items-center bg-gray-100 rounded-full px-3 py-1 text-sm font-medium text-gray-800">
-          {{ domain.domain }}
-          <button type="button" class="ml-1 text-gray-500 hover:text-red-500 focus:outline-none" 
-                  onclick="confirmDeleteDomain('{{ domain.id }}', 'blacklist', '{{ domain.domain }}')">
-            <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
-            </svg>
-          </button>
-        </div>
-      {% empty %}
-        <p class="text-gray-500 italic">No domains added yet.</p>
-      {% endfor %}
     </div>
   </div>
 </div>
@@ -170,6 +258,7 @@
   window.addEventListener('DOMContentLoaded', () => {
     const deleteModal = document.getElementById('deleteModal');
     const cancelDelete = document.getElementById('cancelDelete');
+    const refreshButton = document.getElementById('refresh-suggestions');
     
     // Close modal when Cancel is clicked
     cancelDelete.addEventListener('click', () => {
@@ -181,6 +270,11 @@
       if (event.target === deleteModal) {
         deleteModal.classList.add('hidden');
       }
+    });
+
+    // Refresh suggestions button click handler
+    refreshButton.addEventListener('click', () => {
+      loadDomainSuggestions();
     });
   });
   
@@ -208,6 +302,152 @@
     domainType.value = type;
     
     deleteModal.classList.remove('hidden');
+  }
+
+  function getCsrfToken() {
+    return document.querySelector('[name=csrfmiddlewaretoken]').value;
+  }
+
+  function showMessage(message, isError = false) {
+    // Create a simple toast notification
+    const toast = document.createElement('div');
+    toast.className = `fixed top-4 right-4 z-50 px-4 py-2 rounded-md shadow-lg max-w-sm ${
+      isError ? 'bg-red-500 text-white' : 'bg-green-500 text-white'
+    }`;
+    toast.textContent = message;
+    
+    document.body.appendChild(toast);
+    
+    // Remove after 3 seconds
+    setTimeout(() => {
+      document.body.removeChild(toast);
+    }, 3000);
+  }
+
+  function addSuggestedDomainToBlacklist(domain) {
+    const button = event.target.closest('button');
+    const suggestionChip = button.closest('[data-domain]');
+    
+    // Disable button and show loading state
+    button.disabled = true;
+    button.innerHTML = '<div class="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>';
+    
+    fetch('{% url "portal:add_suggested_domain" %}', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'X-CSRFToken': getCsrfToken(),
+        'X-Requested-With': 'XMLHttpRequest'
+      },
+      body: `domain=${encodeURIComponent(domain)}`
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        // Remove the suggestion chip
+        suggestionChip.style.transition = 'opacity 0.3s ease';
+        suggestionChip.style.opacity = '0';
+        setTimeout(() => {
+          suggestionChip.remove();
+          // Check if no more suggestions
+          const remainingSuggestions = document.querySelectorAll('#suggestions-list [data-domain]');
+          if (remainingSuggestions.length === 0) {
+            document.getElementById('suggestions-list').innerHTML = 
+              '<div class="text-gray-500 italic">No more domain suggestions available.</div>';
+          }
+        }, 300);
+        
+        showMessage(data.message);
+        
+        // Refresh the blacklist section (reload page)
+        setTimeout(() => {
+          location.reload();
+        }, 1000);
+      } else {
+        // Re-enable button and show error
+        button.disabled = false;
+        button.innerHTML = `
+          <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+          </svg>
+        `;
+        showMessage(data.error, true);
+      }
+    })
+    .catch(error => {
+      // Re-enable button and show error
+      button.disabled = false;
+      button.innerHTML = `
+        <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+          <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+        </svg>
+      `;
+      showMessage('Error adding domain to blacklist', true);
+      console.error('Error:', error);
+    });
+  }
+
+  function loadDomainSuggestions() {
+    const loadingEl = document.getElementById('suggestions-loading');
+    const errorEl = document.getElementById('suggestions-error');
+    const containerEl = document.getElementById('suggestions-container');
+    
+    // Show loading state
+    loadingEl.classList.remove('hidden');
+    errorEl.classList.add('hidden');
+    containerEl.classList.add('hidden');
+    
+    fetch('{% url "portal:get_domain_suggestions" %}', {
+      method: 'GET',
+      credentials: 'same-origin',
+      headers: {
+        'Accept': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest'
+      }
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      return response.json();
+    })
+    .then(data => {
+      loadingEl.classList.add('hidden');
+      containerEl.classList.remove('hidden');
+      
+      if (data.error) {
+        errorEl.classList.remove('hidden');
+        document.getElementById('suggestions-error-message').textContent = data.error;
+        return;
+      }
+      
+      // Update suggestions list
+      const suggestionsList = document.getElementById('suggestions-list');
+      if (data.suggestions && data.suggestions.length > 0) {
+        suggestionsList.innerHTML = data.suggestions.map(suggestion => `
+          <div class="inline-flex items-center bg-yellow-50 border border-yellow-200 rounded-full px-3 py-1 text-sm font-medium text-yellow-800" data-domain="${suggestion.domain}">
+            <span class="mr-2">${suggestion.domain}</span>
+            <span class="bg-yellow-200 text-yellow-800 text-xs px-2 py-0.5 rounded-full mr-2">${suggestion.frequency}</span>
+            <button type="button" class="text-green-600 hover:text-green-800 focus:outline-none" 
+                    onclick="addSuggestedDomainToBlacklist('${suggestion.domain}')" 
+                    title="Add to blacklist">
+              <svg class="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+              </svg>
+            </button>
+          </div>
+        `).join('');
+      } else {
+        suggestionsList.innerHTML = '<div class="text-gray-500 italic">No domain suggestions available.</div>';
+      }
+    })
+    .catch(error => {
+      loadingEl.classList.add('hidden');
+      errorEl.classList.remove('hidden');
+      document.getElementById('suggestions-error-message').textContent = `Failed to load domain suggestions: ${error.message}`;
+      console.error('Domain suggestions fetch error:', error);
+    });
   }
 </script>
 {% endblock inline_javascript %}

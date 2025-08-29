@@ -5,6 +5,74 @@ From a company number to a complete outreach-ready profile. Instantly enrich lea
 [![Built with Cookiecutter Django](https://img.shields.io/badge/built%20with-Cookiecutter%20Django-ff69b4.svg?logo=cookiecutter)](https://github.com/cookiecutter/cookiecutter-django/)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
+## 🚀 Quick Start - Running Locally
+
+### Prerequisites
+- Python 3.12+
+- PostgreSQL
+- Redis
+- Node.js (for Tailwind CSS)
+
+### 1. Environment Setup
+```bash
+# Clone and navigate to the project
+git clone <repository-url>
+cd leadtrail
+
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements/local.txt
+npm install
+```
+
+### 2. Database Setup
+```bash
+# Create and apply migrations
+python manage.py makemigrations
+python manage.py migrate
+
+# Create superuser account
+python manage.py createsuperuser
+```
+
+### 3. Start Services (4 Terminal Windows)
+
+**Terminal 1 - Django Server:**
+```bash
+python manage.py runserver
+```
+
+**Terminal 2 - Celery Worker:**
+```bash
+celery -A config.celery_app worker --concurrency=1 -l info
+```
+
+**Terminal 3 - Celery Beat Scheduler:**
+```bash
+celery -A config.celery_app beat -l info
+```
+
+**Terminal 4 - Flower Monitor (Optional):**
+```bash
+celery -A config.celery_app flower --port=5555
+```
+
+### 4. Access Applications
+- **Django App**: http://localhost:8000
+- **Flower Monitor**: http://localhost:5555
+- **Admin Panel**: http://localhost:8000/admin
+
+### 5. Background Tasks
+The application includes automated background workers that process:
+- **Companies House API lookups** (every 2 minutes)
+- **VAT number lookups** (every minute)
+- **Website discovery and ranking** (every 3 minutes)
+
+Monitor these tasks in real-time via Flower at http://localhost:5555
+
 ## Settings
 
 Moved to [settings](https://cookiecutter-django.readthedocs.io/en/latest/1-getting-started/settings.html).
@@ -43,32 +111,36 @@ To run the tests, check your test coverage, and generate an HTML coverage report
 
 Moved to [Live reloading and SASS compilation](https://cookiecutter-django.readthedocs.io/en/latest/2-local-development/developing-locally.html#using-webpack-or-gulp).
 
-### Celery
+### Celery Background Processing
 
-This app comes with Celery.
+This app uses Celery with Redis for background task processing with singleton pattern to prevent duplicate processing.
 
-To run a celery worker:
+**⚠️ IMPORTANT: Use the commands from the Quick Start section above. The configuration below prevents duplicate key constraint errors.**
+
+**✅ CORRECT WAY - Separate processes:**
 
 ```bash
-cd leadtrail
-celery -A config.celery_app worker -l info
+# Terminal 1 - Single worker (prevents race conditions)
+celery -A config.celery_app worker --concurrency=1 -l info
+
+# Terminal 2 - Separate beat scheduler
+celery -A config.celery_app beat -l info
+
+# Terminal 3 - Flower monitoring (optional)
+celery -A config.celery_app flower --port=5555
 ```
 
-Please note: For Celery's import magic to work, it is important _where_ the celery commands are run. If you are in the same folder with _manage.py_, you should be right.
-
-To run [periodic tasks](https://docs.celeryq.dev/en/stable/userguide/periodic-tasks.html), you'll need to start the celery beat scheduler service. You can start it as a standalone process:
-
+**❌ OLD WAY (causes duplicate key errors):**
 ```bash
-cd leadtrail
-celery -A config.celery_app beat
-```
-
-or you can embed the beat service inside a worker with the `-B` option (not recommended for production use):
-
-```bash
-cd leadtrail
+# DON'T USE: Creates multiple schedulers and race conditions
 celery -A config.celery_app worker -B -l info
 ```
+
+**Key Features:**
+- **Singleton Tasks**: Only one instance of each task can run at a time
+- **Sequential Processing**: Tasks execute one at a time to prevent conflicts
+- **Real-time Monitoring**: Flower provides web interface for task monitoring
+- **Automated Scheduling**: Background workers run on predefined intervals
 
 ### Email Server
 

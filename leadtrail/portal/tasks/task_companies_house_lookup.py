@@ -13,6 +13,7 @@ from django.conf import settings
 from django.db import transaction
 
 from config.celery_app import app
+from celery_singleton import Singleton
 from leadtrail.portal.models import CompanyNumber, CompanyHouseData
 from leadtrail.portal.modules.companies_house_api_search import (
     CompaniesHouseAPIClient, 
@@ -194,10 +195,15 @@ def _process_company_number(company_number_obj: CompanyNumber, api_client: Compa
         return False
 
 
-@app.task
+@app.task(base=Singleton, lock_expiry=180, raise_on_duplicate=False)
 def run():
     """
     Task to perform Companies House lookup for unprocessed company numbers.
+    
+    Singleton Configuration:
+    - Lock expiry: 180 seconds (3 minutes) - matches typical task duration + buffer
+    - Prevents duplicate scheduling: If task is already running, beat scheduler will 
+      return existing task instead of queuing new one
     
     This task:
     1. Finds company numbers without existing CompanyHouseData records
@@ -211,7 +217,7 @@ def run():
     # Get batch size from environment or use default
     batch_size = int(os.environ.get('COMPANIES_HOUSE_BATCH_SIZE', DEFAULT_BATCH_SIZE))
     
-    logger.info(f"Starting Companies House lookup task (batch size: {batch_size})")
+    logger.info(f"[SINGLETON] Starting Companies House lookup task (batch size: {batch_size}) - Lock expiry: 180s")
     
     try:
         # Get unprocessed company numbers (oldest first)

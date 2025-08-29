@@ -2,6 +2,7 @@ import os
 
 from celery import Celery
 from celery.signals import setup_logging
+from celery_singleton import Singleton
 
 # set the default Django settings module for the 'celery' program.
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.local")
@@ -13,6 +14,12 @@ app = Celery("leadtrail")
 # - namespace='CELERY' means all celery-related configuration keys
 #   should have a `CELERY_` prefix.
 app.config_from_object("django.conf:settings", namespace="CELERY")
+
+# Configure celery-singleton
+app.conf.update(
+    singleton_backend_url='redis://127.0.0.1:6379/0',
+    singleton_lock_expiry=300,  # 5 minutes
+)
 
 
 @setup_logging.connect

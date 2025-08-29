@@ -38,14 +38,19 @@ djlint leadtrail/templates/      # Template linting
 
 ### Background Tasks (Celery)
 ```bash
-# Run celery worker
-celery -A config.celery_app worker -l info
+# CORRECT WAY - Run separate processes to prevent duplicate key constraints:
 
-# Run celery beat scheduler
-celery -A config.celery_app beat
+# Terminal 1 - Single worker (prevents race conditions)
+celery -A config.celery_app worker --concurrency=1 -l info
 
-# Run worker with beat embedded (development only)
-celery -A config.celery_app worker -B -l info
+# Terminal 2 - Separate beat scheduler 
+celery -A config.celery_app beat -l info
+
+# Terminal 3 - Flower monitoring (optional)
+celery -A config.celery_app flower --port=5555
+
+# IMPORTANT: Never use -B flag with worker as it creates multiple schedulers!
+# OLD WAY (causes duplicate key errors): celery -A config.celery_app worker -B -l info
 ```
 
 ### Frontend Assets

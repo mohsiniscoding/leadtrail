@@ -14,6 +14,7 @@ from django.conf import settings
 from django.db import transaction
 
 from config.celery_app import app
+from celery_singleton import Singleton
 from leadtrail.portal.models import CompanyNumber, VATLookup, CompanyHouseData
 from leadtrail.portal.modules.vat_lookup import VATLookupClient, VATData, VATSearchStatus
 from leadtrail.portal.modules.companies_house_api_search import CompanySearchStatus
@@ -150,7 +151,7 @@ def _process_company_vat_lookup(company_number_obj: CompanyNumber, vat_client: V
         return False
 
 
-@app.task
+@app.task(base=Singleton, lock_expiry=120, raise_on_duplicate=False)
 def run():
     """
     Task to perform VAT lookup for companies that have completed Companies House processing.
@@ -168,7 +169,7 @@ def run():
     # Get batch size from environment or use default
     batch_size = int(os.environ.get('VAT_LOOKUP_BATCH_SIZE', DEFAULT_BATCH_SIZE))
     
-    logger.info(f"Starting VAT lookup task (batch size: {batch_size})")
+    logger.info(f"[SINGLETON] Starting VAT lookup task (batch size: {batch_size}) - Lock expiry: 120s")
     
     try:
         # Get companies that have completed Companies House processing but no VAT lookup

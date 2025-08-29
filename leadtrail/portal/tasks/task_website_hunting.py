@@ -11,6 +11,7 @@ from typing import Dict, List, Any, Optional
 from django.db import transaction
 
 from config.celery_app import app
+from celery_singleton import Singleton
 from leadtrail.portal.models import (
     CompanyNumber, 
     WebsiteHuntingResult, 
@@ -218,11 +219,6 @@ def _process_website_hunting(company_number_obj: CompanyNumber,
         # Determine overall processing notes
         processing_notes = f"SERP: {serp_notes}. Crawl: {crawl_notes}"
         
-        # Check if record already exists (safety check)
-        if WebsiteHuntingResult.objects.filter(company_number=company_number_obj).exists():
-            logger.warning(f"WebsiteHuntingResult already exists for {company_number_obj.company_number}, skipping")
-            return True
-        
         # Create WebsiteHuntingResult record
         website_result = WebsiteHuntingResult(
             company_number=company_number_obj,
@@ -246,11 +242,6 @@ def _process_website_hunting(company_number_obj: CompanyNumber,
         
         # Create error record in database
         try:
-            # Check if record already exists (safety check for error case)
-            if WebsiteHuntingResult.objects.filter(company_number=company_number_obj).exists():
-                logger.warning(f"WebsiteHuntingResult already exists for {company_number_obj.company_number}, skipping error record")
-                return False
-                
             error_result = WebsiteHuntingResult(
                 company_number=company_number_obj,
                 domains_found=[],
@@ -270,7 +261,7 @@ def _process_website_hunting(company_number_obj: CompanyNumber,
         return False
 
 
-@app.task
+@app.task(base=Singleton, lock_expiry=600, raise_on_duplicate=False)
 def run():
     """
     Website hunting background task.
@@ -281,7 +272,7 @@ def run():
     Returns:
         str: Summary of processing results
     """
-    logger.info("Website hunting task started")
+    logger.info("[SINGLETON] Website hunting task started - Lock expiry: 600s")
     
     try:
         # Get companies ready for website hunting (VAT lookup completed, oldest first)

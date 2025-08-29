@@ -9,6 +9,23 @@
 <div class="container mx-auto px-4 py-6">
   <h1 class="text-2xl font-bold text-gray-800 mb-6">Create New Campaign</h1>
   
+  {% if has_existing_campaign %}
+    <div class="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
+      <div class="flex">
+        <div class="ml-3">
+          <h3 class="text-sm font-medium text-yellow-800">Campaign Limit Reached</h3>
+          <p class="text-sm text-yellow-700 mt-1">
+            You can have 1 campaign running at a time, this is to save resources and database calls on Heroku. Please delete your existing campaign before creating a new one.
+          </p>
+          <div class="mt-3">
+            <a href="{% url 'portal:home' %}" class="px-3 py-2 bg-yellow-600 text-white text-sm rounded hover:bg-yellow-700 transition-colors">
+              Go to Campaigns
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  {% else %}
   <div class="bg-white shadow-md rounded-lg p-6">
     <form id="campaignForm" method="post" action="{% url 'portal:campaign_create' %}">
       {% csrf_token %}
@@ -33,6 +50,7 @@ SC769981"></textarea>
       </div>
     </form>
   </div>
+  {% endif %}
 </div>
 
 <!-- Sanitize Result Dialog -->
@@ -60,6 +78,7 @@ SC769981"></textarea>
 {% endblock content %}
 
 {% block inline_javascript %}
+{% if not has_existing_campaign %}
 <script>
   window.addEventListener('DOMContentLoaded', () => {
     console.log("Script loaded");
@@ -123,4 +142,5 @@ SC769981"></textarea>
     });
   });
 </script>
+{% endif %}
 {% endblock inline_javascript %}

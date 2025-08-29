@@ -21,13 +21,23 @@
 
   <!-- Pagination Controls -->
   <div class="mb-6 flex items-center justify-between">
-    <div class="flex items-center space-x-2">
-      <label for="per_page" class="text-sm text-gray-600">Results per page:</label>
-      <select id="per_page" class="px-3 py-1 border border-gray-300 rounded text-sm">
-        {% for option in per_page_options %}
-          <option value="{{ option }}" {% if option == current_per_page %}selected{% endif %}>{{ option }}</option>
-        {% endfor %}
-      </select>
+    <div class="flex items-center space-x-4">
+      <div class="flex items-center space-x-2">
+        <label for="per_page" class="text-sm text-gray-600">Results per page:</label>
+        <select id="per_page" class="px-3 py-1 border border-gray-300 rounded text-sm">
+          {% for option in per_page_options %}
+            <option value="{{ option }}" {% if option == current_per_page %}selected{% endif %}>{{ option }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      
+      <!-- Non-Zero Score Filter -->
+      <div class="flex items-center space-x-2">
+        <label for="non_zero_filter" class="text-sm text-gray-600">
+          <input type="checkbox" id="non_zero_filter" {% if non_zero_filter == 'true' %}checked{% endif %} class="mr-1">
+          Show only non-zero scores
+        </label>
+      </div>
     </div>
     
     {% if page_obj %}
@@ -92,11 +102,18 @@
               <div class="flex items-center justify-between">
                 <div>
                   <h5 class="font-medium text-green-900">Approved Domain</h5>
-                  <p class="text-green-700 mt-1">{{ company.website_hunting_result.approved_domain }}</p>
+                  <p class="text-green-700 mt-1">
+                    <a href="https://{{ company.website_hunting_result.approved_domain }}" 
+                       target="_blank" 
+                       rel="noopener noreferrer" 
+                       class="hover:underline">
+                      {{ company.website_hunting_result.approved_domain }}
+                    </a>
+                  </p>
                 </div>
-                <button onclick="showChangeApprovalModal('{{ company.id }}', '{{ company.website_hunting_result.approved_domain }}')" 
-                        class="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors">
-                  Change Approval
+                <button onclick="showRemoveApprovalModal('{{ company.id }}', '{{ company.website_hunting_result.approved_domain }}')" 
+                        class="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors">
+                  Remove Approval
                 </button>
               </div>
             </div>
@@ -111,13 +128,23 @@
                 <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
                   <div class="flex-1">
                     <div class="flex items-center space-x-3">
-                      <span class="font-medium text-gray-900">{{ domain_result.domain }}</span>
+                      <a href="https://{{ domain_result.domain }}" 
+                         target="_blank" 
+                         rel="noopener noreferrer" 
+                         class="font-medium text-gray-900 hover:underline hover:text-blue-600">
+                        {{ domain_result.domain }}
+                      </a>
                       <span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
                         Score: {{ domain_result.score|floatformat:2 }}
                       </span>
                       <span class="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
                         {{ domain_result.pages_crawled }} pages
                       </span>
+                      {% if domain_result.domain in blacklisted_domains %}
+                        <span class="px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">
+                          🚫 Blacklisted
+                        </span>
+                      {% endif %}
                     </div>
                     {% if domain_result.match_summary %}
                       <p class="text-sm text-gray-600 mt-1">{{ domain_result.match_summary }}</p>
@@ -171,10 +198,10 @@
   <div class="mt-8 flex items-center justify-between">
     <div class="flex items-center space-x-2">
       {% if page_obj.has_previous %}
-        <a href="?page=1&per_page={{ current_per_page }}" class="px-3 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300">
+        <a href="?page=1&per_page={{ current_per_page }}&non_zero_score={{ non_zero_filter }}" class="px-3 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300">
           First
         </a>
-        <a href="?page={{ page_obj.previous_page_number }}&per_page={{ current_per_page }}" class="px-3 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300">
+        <a href="?page={{ page_obj.previous_page_number }}&per_page={{ current_per_page }}&non_zero_score={{ non_zero_filter }}" class="px-3 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300">
           Previous
         </a>
       {% endif %}
@@ -186,10 +213,10 @@
     
     <div class="flex items-center space-x-2">
       {% if page_obj.has_next %}
-        <a href="?page={{ page_obj.next_page_number }}&per_page={{ current_per_page }}" class="px-3 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300">
+        <a href="?page={{ page_obj.next_page_number }}&per_page={{ current_per_page }}&non_zero_score={{ non_zero_filter }}" class="px-3 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300">
           Next
         </a>
-        <a href="?page={{ page_obj.paginator.num_pages }}&per_page={{ current_per_page }}" class="px-3 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300">
+        <a href="?page={{ page_obj.paginator.num_pages }}&per_page={{ current_per_page }}&non_zero_score={{ non_zero_filter }}" class="px-3 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300">
           Last
         </a>
       {% endif %}
@@ -218,6 +245,26 @@
   </div>
 </div>
 
+<!-- Remove Approval Modal -->
+<div id="removeApprovalModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50">
+  <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
+    <div class="p-6">
+      <h3 class="text-lg font-medium text-gray-900 mb-4">Remove Approval</h3>
+      <p class="text-gray-600 mb-6">
+        Are you sure you want to remove approval for <span id="removeApprovalDomain" class="font-medium"></span> from company <span id="removeApprovalCompany" class="font-medium"></span>?
+      </p>
+      <div class="flex justify-end space-x-3">
+        <button onclick="hideRemoveApprovalModal()" class="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300">
+          Cancel
+        </button>
+        <button onclick="submitRemoveApproval()" class="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700">
+          Remove Approval
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Blacklist Modal -->
 <div id="blacklistModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden flex items-center justify-center z-50">
   <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4">
@@ -238,19 +285,22 @@
   </div>
 </div>
 
-<!-- Hidden Form for Submissions -->
-<form id="actionForm" method="post" style="display: none;">
-  {% csrf_token %}
-  <input type="hidden" name="action" id="actionType">
-  <input type="hidden" name="company_id" id="actionCompanyId">
-  <input type="hidden" name="domain" id="actionDomain">
-</form>
+<!-- CSRF Token for AJAX requests -->
+<input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
 
 <script>
 // Per-page selector
 document.getElementById('per_page').addEventListener('change', function() {
   const url = new URL(window.location);
   url.searchParams.set('per_page', this.value);
+  url.searchParams.set('page', '1'); // Reset to first page
+  window.location.href = url.toString();
+});
+
+// Non-zero score filter
+document.getElementById('non_zero_filter').addEventListener('change', function() {
+  const url = new URL(window.location);
+  url.searchParams.set('non_zero_score', this.checked ? 'true' : 'false');
   url.searchParams.set('page', '1'); // Reset to first page
   window.location.href = url.toString();
 });
@@ -282,23 +332,305 @@ function hideBlacklistModal() {
   document.getElementById('blacklistModal').classList.add('hidden');
 }
 
-function showChangeApprovalModal(companyId, currentApprovedDomain) {
-  // For changing approval, we show the approval modal with current domain
-  showApprovalModal(companyId, currentApprovedDomain);
+function showRemoveApprovalModal(companyId, currentApprovedDomain) {
+  currentCompanyId = companyId;
+  currentDomain = currentApprovedDomain;
+  document.getElementById('removeApprovalDomain').textContent = currentApprovedDomain;
+  document.getElementById('removeApprovalCompany').textContent = companyId;
+  document.getElementById('removeApprovalModal').classList.remove('hidden');
+}
+
+function hideRemoveApprovalModal() {
+  document.getElementById('removeApprovalModal').classList.add('hidden');
 }
 
 function submitApproval() {
-  document.getElementById('actionType').value = 'approve';
-  document.getElementById('actionCompanyId').value = currentCompanyId;
-  document.getElementById('actionDomain').value = currentDomain;
-  document.getElementById('actionForm').submit();
+  // Show loading state
+  const approveButton = document.querySelector('#approvalModal button[onclick="submitApproval()"]');
+  const originalText = approveButton.textContent;
+  approveButton.textContent = 'Processing...';
+  approveButton.disabled = true;
+  
+  // Get CSRF token
+  const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+  
+  fetch('{% url "portal:website_review_action" %}', {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'X-CSRFToken': csrfToken
+    },
+    body: `action=approve&company_id=${currentCompanyId}&domain=${currentDomain}`
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      // Show success message briefly then refresh
+      showNotification(data.message, 'success');
+      
+      // Refresh the page after a short delay
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+    } else {
+      showNotification(data.error || 'An error occurred', 'error');
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    showNotification('Network error occurred', 'error');
+  })
+  .finally(() => {
+    // Reset button
+    approveButton.textContent = originalText;
+    approveButton.disabled = false;
+  });
+}
+
+function submitRemoveApproval() {
+  // Show loading state
+  const removeButton = document.querySelector('#removeApprovalModal button[onclick="submitRemoveApproval()"]');
+  const originalText = removeButton.textContent;
+  removeButton.textContent = 'Processing...';
+  removeButton.disabled = true;
+  
+  // Get CSRF token
+  const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+  
+  fetch('{% url "portal:website_review_action" %}', {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'X-CSRFToken': csrfToken
+    },
+    body: `action=remove_approval&company_id=${currentCompanyId}&domain=${currentDomain}`
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      // Show success message briefly then refresh
+      showNotification(data.message, 'success');
+      
+      // Refresh the page after a short delay
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+    } else {
+      showNotification(data.error || 'An error occurred', 'error');
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    showNotification('Network error occurred', 'error');
+  })
+  .finally(() => {
+    // Reset button
+    removeButton.textContent = originalText;
+    removeButton.disabled = false;
+  });
 }
 
 function submitBlacklist() {
-  document.getElementById('actionType').value = 'blacklist';
-  document.getElementById('actionCompanyId').value = currentCompanyId;
-  document.getElementById('actionDomain').value = currentDomain;
-  document.getElementById('actionForm').submit();
+  // Show loading state
+  const blacklistButton = document.querySelector('#blacklistModal button[onclick="submitBlacklist()"]');
+  const originalText = blacklistButton.textContent;
+  blacklistButton.textContent = 'Processing...';
+  blacklistButton.disabled = true;
+  
+  // Get CSRF token
+  const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+  
+  fetch('{% url "portal:website_review_action" %}', {
+    method: 'POST',
+    credentials: 'same-origin',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'X-CSRFToken': csrfToken
+    },
+    body: `action=blacklist&company_id=${currentCompanyId}&domain=${currentDomain}`
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      // Show success message briefly then refresh
+      showNotification(data.message, 'success');
+      
+      // Refresh the page after a short delay
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+    } else {
+      showNotification(data.error || 'An error occurred', 'error');
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    showNotification('Network error occurred', 'error');
+  })
+  .finally(() => {
+    // Reset button
+    blacklistButton.textContent = originalText;
+    blacklistButton.disabled = false;
+  });
+}
+
+// Helper function to update UI after approval or blacklist
+function updateCompanyUI(companyId, action, domain) {
+  if (action === 'approve') {
+    // Find the company card
+    const companyCards = document.querySelectorAll('.bg-white.shadow-md.rounded-lg');
+    
+    for (let card of companyCards) {
+      // Check if this card contains the company we're looking for
+      const companyHeader = card.querySelector('h3');
+      if (companyHeader && companyHeader.textContent.includes('Company ' + companyId)) {
+        // Update status badge
+        const statusBadge = card.querySelector('.inline-flex.items-center.px-2\\.5.py-0\\.5.rounded-full');
+        if (statusBadge) {
+          statusBadge.className = 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800';
+          statusBadge.textContent = '✓ Approved';
+        }
+        
+        // Add approved domain section if it doesn't exist
+        const websiteResults = card.querySelector('.space-y-4');
+        if (websiteResults) {
+          // Check if approved section already exists
+          let approvedSection = card.querySelector('.bg-green-50');
+          if (!approvedSection) {
+            // Create approved section
+            const approvedHTML = `
+              <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <h5 class="font-medium text-green-900">Approved Domain</h5>
+                    <p class="text-green-700 mt-1">
+                      <a href="https://${domain}" 
+                         target="_blank" 
+                         rel="noopener noreferrer" 
+                         class="hover:underline">
+                        ${domain}
+                      </a>
+                    </p>
+                  </div>
+                  <button onclick="showRemoveApprovalModal('${companyId}', '${domain}')" 
+                          class="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors">
+                    Remove Approval
+                  </button>
+                </div>
+              </div>
+            `;
+            
+            // Insert at the beginning of the websiteResults
+            const h4 = websiteResults.querySelector('h4');
+            h4.insertAdjacentHTML('afterend', approvedHTML);
+          }
+          
+          // Hide approve/blacklist buttons for all domains in this company
+          const actionButtons = card.querySelectorAll('.flex.space-x-2');
+          actionButtons.forEach(buttonGroup => {
+            if (buttonGroup.querySelector('button[onclick*="showApprovalModal"]')) {
+              buttonGroup.style.display = 'none';
+            }
+          });
+        }
+        break;
+      }
+    }
+  } else if (action === 'blacklist') {
+    // Find the company card and add blacklist chip to the specific domain
+    const companyCards = document.querySelectorAll('.bg-white.shadow-md.rounded-lg');
+    
+    for (let card of companyCards) {
+      // Check if this card contains the company we're looking for
+      const companyHeader = card.querySelector('h3');
+      if (companyHeader && companyHeader.textContent.includes('Company ' + companyId)) {
+        // Find all domain links in this company's card
+        const domainLinks = card.querySelectorAll('a[href^="https://"]');
+        
+        for (let link of domainLinks) {
+          // Check if this link contains the blacklisted domain
+          if (link.textContent.trim() === domain) {
+            // Find the parent div that contains the chips
+            const chipsContainer = link.closest('.flex.items-center.space-x-3');
+            if (chipsContainer) {
+              // Check if blacklist chip already exists
+              const existingChip = chipsContainer.querySelector('.bg-red-100');
+              if (!existingChip) {
+                // Add blacklist chip
+                const blacklistChip = document.createElement('span');
+                blacklistChip.className = 'px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full';
+                blacklistChip.textContent = '🚫 Blacklisted';
+                chipsContainer.appendChild(blacklistChip);
+              }
+            }
+          }
+        }
+        break;
+      }
+    }
+  } else if (action === 'remove_approval') {
+    // Find the company card and remove the approved domain section
+    const companyCards = document.querySelectorAll('.bg-white.shadow-md.rounded-lg');
+    
+    for (let card of companyCards) {
+      // Check if this card contains the company we're looking for
+      const companyHeader = card.querySelector('h3');
+      if (companyHeader && companyHeader.textContent.includes('Company ' + companyId)) {
+        // Update status badge to pending review
+        const statusBadge = card.querySelector('.inline-flex.items-center.px-2\\.5.py-0\\.5.rounded-full');
+        if (statusBadge) {
+          statusBadge.className = 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800';
+          statusBadge.textContent = 'Pending Review';
+        }
+        
+        // Remove approved domain section
+        const approvedSection = card.querySelector('.bg-green-50');
+        if (approvedSection) {
+          approvedSection.remove();
+        }
+        
+        // Show approve/blacklist buttons for all domains in this company
+        const actionButtons = card.querySelectorAll('.flex.space-x-2');
+        actionButtons.forEach(buttonGroup => {
+          if (buttonGroup.querySelector('button[onclick*="showApprovalModal"]')) {
+            buttonGroup.style.display = 'flex';
+          }
+        });
+        
+        break;
+      }
+    }
+  }
+}
+
+// Helper function to show notifications
+function showNotification(message, type = 'success') {
+  // Create notification element
+  const notification = document.createElement('div');
+  notification.className = `fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg z-50 transition-all duration-300 transform translate-x-0 ${
+    type === 'success' ? 'bg-green-600 text-white' : 'bg-red-600 text-white'
+  }`;
+  notification.textContent = message;
+  
+  // Add to page
+  document.body.appendChild(notification);
+  
+  // Animate in
+  setTimeout(() => {
+    notification.style.transform = 'translateX(0)';
+  }, 100);
+  
+  // Remove after 4 seconds
+  setTimeout(() => {
+    notification.style.transform = 'translateX(100%)';
+    setTimeout(() => {
+      if (notification.parentNode) {
+        notification.parentNode.removeChild(notification);
+      }
+    }, 300);
+  }, 4000);
 }
 
 // Close modals when clicking outside
@@ -308,6 +640,10 @@ document.getElementById('approvalModal').addEventListener('click', function(e) {
 
 document.getElementById('blacklistModal').addEventListener('click', function(e) {
   if (e.target === this) hideBlacklistModal();
+});
+
+document.getElementById('removeApprovalModal').addEventListener('click', function(e) {
+  if (e.target === this) hideRemoveApprovalModal();
 });
 </script>
 {% endblock content %}

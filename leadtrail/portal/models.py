@@ -4,6 +4,8 @@ Portal app models.
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.core.validators import RegexValidator
+from collections import Counter
+from typing import List, Tuple, Optional, Dict, Any
 
 from .modules.companies_house_api_search import CompanySearchStatus
 from .modules.vat_lookup import VATSearchStatus
@@ -39,6 +41,11 @@ class Campaign(models.Model):
         auto_now=True,
         help_text=_("When the campaign was last updated")
     )
+    linkedin_lookup_enabled = models.BooleanField(
+        _("LinkedIn Lookup Enabled"),
+        default=False,
+        help_text=_("Whether LinkedIn lookup is enabled for this campaign")
+    )
 
     class Meta:
         verbose_name = _("Campaign")
@@ -59,6 +66,32 @@ class Campaign(models.Model):
         return round((completed / total) * 100)
 
     @property
+    def house_data_stats(self):
+        """Get Companies House lookup statistics for display."""
+        total = self.company_numbers.count()
+        completed = self.company_numbers.filter(house_data__isnull=False).count()
+        
+        if completed == 0:
+            success_rate = 0
+        else:
+            successful = self.company_numbers.filter(
+                house_data__isnull=False,
+                house_data__status='SUCCESS'
+            ).count()
+            success_rate = round((successful / completed) * 100)
+        
+        return {
+            'total_companies': total,
+            'completed_lookups': completed,
+            'successful_lookups': self.company_numbers.filter(
+                house_data__isnull=False,
+                house_data__status='SUCCESS'
+            ).count(),
+            'success_rate': success_rate,
+            'progress_percentage': self.house_data_progress
+        }
+
+    @property
     def vat_lookup_progress(self):
         """Calculate progress percentage of VAT lookup."""
         total = self.company_numbers.count()
@@ -68,6 +101,32 @@ class Campaign(models.Model):
         return round((completed / total) * 100)
 
     @property
+    def vat_lookup_stats(self):
+        """Get VAT lookup statistics for display."""
+        total = self.company_numbers.count()
+        completed = self.company_numbers.filter(vat_lookup__isnull=False).count()
+        
+        if completed == 0:
+            success_rate = 0
+        else:
+            successful = self.company_numbers.filter(
+                vat_lookup__isnull=False,
+                vat_lookup__status='SUCCESS'
+            ).count()
+            success_rate = round((successful / completed) * 100)
+        
+        return {
+            'total_companies': total,
+            'completed_lookups': completed,
+            'successful_lookups': self.company_numbers.filter(
+                vat_lookup__isnull=False,
+                vat_lookup__status='SUCCESS'
+            ).count(),
+            'success_rate': success_rate,
+            'progress_percentage': self.vat_lookup_progress
+        }
+
+    @property
     def website_hunting_progress(self):
         """Calculate progress percentage of Website Hunting."""
         total = self.company_numbers.count()
@@ -75,6 +134,245 @@ class Campaign(models.Model):
             return 0
         completed = self.company_numbers.filter(website_hunting_result__isnull=False).count()
         return round((completed / total) * 100)
+
+    @property
+    def website_hunting_stats(self):
+        """Get Website Hunting statistics with score breakdown for display."""
+        
+        total = self.company_numbers.count()
+        completed = self.company_numbers.filter(website_hunting_result__isnull=False).count()
+        
+        # Count approved domains (human-approved)
+        approved_domains = self.company_numbers.filter(
+            website_hunting_result__approved_domain__isnull=False,
+            website_hunting_result__approved_by_human=True
+        ).count()
+        
+        # Initialize score counters
+        no_score_count = 0  # No websites found or all websites have 0 score
+        score_2_count = 0   # Companies with 2 score websites
+        score_1_5_count = 0 # Companies with 1.5 score websites  
+        score_1_count = 0   # Companies with 1 score websites
+        score_0_75_count = 0 # Companies with 0.75 score websites
+        
+        # Process each company's website hunting results
+        for company in self.company_numbers.filter(website_hunting_result__isnull=False).select_related('website_hunting_result'):
+            hunting_result = company.website_hunting_result
+            ranked_domains = hunting_result.ranked_domains or []
+            
+            if not ranked_domains:
+                no_score_count += 1
+                continue
+            
+            # Get the highest score from all ranked domains
+            max_score = 0
+            for domain_result in ranked_domains:
+                if isinstance(domain_result, dict) and 'score' in domain_result:
+                    try:
+                        score = float(domain_result['score'])
+                        max_score = max(max_score, score)
+                    except (ValueError, TypeError):
+                        continue
+            
+            # Categorize based on highest score found
+            if max_score == 0:
+                no_score_count += 1
+            elif max_score >= 2.0:
+                score_2_count += 1
+            elif max_score >= 1.5:
+                score_1_5_count += 1
+            elif max_score >= 1.0:
+                score_1_count += 1
+            elif max_score >= 0.75:
+                score_0_75_count += 1
+            else:
+                no_score_count += 1
+        
+        # Calculate percentages and non-zero total
+        non_zero_count = score_2_count + score_1_5_count + score_1_count + score_0_75_count
+        
+        if completed > 0:
+            no_score_pct = round((no_score_count / completed) * 100)
+            score_2_pct = round((score_2_count / completed) * 100)
+            score_1_5_pct = round((score_1_5_count / completed) * 100)
+            score_1_pct = round((score_1_count / completed) * 100)
+            score_0_75_pct = round((score_0_75_count / completed) * 100)
+            non_zero_pct = round((non_zero_count / completed) * 100)
+        else:
+            no_score_pct = score_2_pct = score_1_5_pct = score_1_pct = score_0_75_pct = non_zero_pct = 0
+        
+        return {
+            'total_companies': total,
+            'completed_lookups': completed,
+            'approved_domains': approved_domains,
+            'progress_percentage': self.website_hunting_progress,
+            'score_breakdown': {
+                'no_score': {'count': no_score_count, 'percentage': no_score_pct},
+                'non_zero': {'count': non_zero_count, 'percentage': non_zero_pct},
+                'score_2': {'count': score_2_count, 'percentage': score_2_pct},
+                'score_1_5': {'count': score_1_5_count, 'percentage': score_1_5_pct},
+                'score_1': {'count': score_1_count, 'percentage': score_1_pct},
+                'score_0_75': {'count': score_0_75_count, 'percentage': score_0_75_pct},
+            }
+        }
+
+    @property
+    def website_contact_lookup_progress(self):
+        """Calculate progress percentage of Website Contact Lookup for approved domains."""
+        # Count companies with approved domains (human-approved)
+        approved_domains = self.company_numbers.filter(
+            website_hunting_result__approved_domain__isnull=False,
+            website_hunting_result__approved_by_human=True
+        ).count()
+        
+        if approved_domains == 0:
+            return 0
+        
+        # Count companies with contact lookup completed
+        completed = self.company_numbers.filter(
+            website_hunting_result__approved_domain__isnull=False,
+            website_hunting_result__approved_by_human=True,
+            website_contact_lookup__isnull=False
+        ).count()
+        
+        return round((completed / approved_domains) * 100)
+
+    @property
+    def website_contact_lookup_stats(self):
+        """Get website contact lookup statistics with contact type breakdown for display."""
+        approved_domains = self.company_numbers.filter(
+            website_hunting_result__approved_domain__isnull=False,
+            website_hunting_result__approved_by_human=True
+        ).count()
+        
+        completed = self.company_numbers.filter(
+            website_hunting_result__approved_domain__isnull=False,
+            website_hunting_result__approved_by_human=True,
+            website_contact_lookup__isnull=False
+        ).count()
+        
+        # Initialize contact type counters
+        email_found_count = 0
+        phone_found_count = 0
+        linkedin_found_count = 0
+        
+        # Process each company's contact lookup results
+        for company in self.company_numbers.filter(
+            website_hunting_result__approved_domain__isnull=False,
+            website_hunting_result__approved_by_human=True,
+            website_contact_lookup__isnull=False
+        ).select_related('website_contact_lookup'):
+            
+            contact_lookup = company.website_contact_lookup
+            
+            # Check for email addresses
+            if contact_lookup.email_addresses and len(contact_lookup.email_addresses) > 0:
+                email_found_count += 1
+            
+            # Check for phone numbers
+            if contact_lookup.phone_numbers and len(contact_lookup.phone_numbers) > 0:
+                phone_found_count += 1
+            
+            # Check for LinkedIn in social media links
+            if contact_lookup.social_media_links:
+                linkedin_links = contact_lookup.social_media_links.get('linkedin', [])
+                if isinstance(linkedin_links, list) and len(linkedin_links) > 0:
+                    linkedin_found_count += 1
+                elif isinstance(linkedin_links, str) and linkedin_links.strip():
+                    linkedin_found_count += 1
+        
+        # Calculate percentages
+        if completed > 0:
+            email_found_pct = round((email_found_count / completed) * 100)
+            phone_found_pct = round((phone_found_count / completed) * 100)
+            linkedin_found_pct = round((linkedin_found_count / completed) * 100)
+        else:
+            email_found_pct = phone_found_pct = linkedin_found_pct = 0
+        
+        return {
+            'approved_domains': approved_domains,
+            'completed_lookups': completed,
+            'progress_percentage': self.website_contact_lookup_progress,
+            'contact_breakdown': {
+                'email_found': {'count': email_found_count, 'percentage': email_found_pct},
+                'phone_found': {'count': phone_found_count, 'percentage': phone_found_pct},
+                'linkedin_found': {'count': linkedin_found_count, 'percentage': linkedin_found_pct},
+            }
+        }
+
+    @property
+    def linkedin_lookup_progress(self):
+        """Calculate progress percentage of LinkedIn Lookup."""
+        # Only count companies if LinkedIn lookup is enabled for this campaign
+        if not self.linkedin_lookup_enabled:
+            return 0
+        
+        total = self.company_numbers.count()
+        if total == 0:
+            return 0
+        
+        completed = self.company_numbers.filter(linkedin_lookup__isnull=False).count()
+        return round((completed / total) * 100)
+
+    @property
+    def linkedin_lookup_stats(self):
+        """Get LinkedIn lookup statistics with profile type breakdown for display."""
+        if not self.linkedin_lookup_enabled:
+            return {
+                'total_companies': 0,
+                'completed_lookups': 0,
+                'progress_percentage': 0,
+                'enabled': False
+            }
+        
+        total = self.company_numbers.count()
+        completed = self.company_numbers.filter(linkedin_lookup__isnull=False).count()
+        
+        # Initialize profile type counters
+        employee_found_count = 0
+        company_found_count = 0
+        overall_success_count = 0
+        
+        # Process each company's LinkedIn lookup results
+        for company in self.company_numbers.filter(linkedin_lookup__isnull=False).select_related('linkedin_lookup'):
+            linkedin_lookup = company.linkedin_lookup
+            
+            has_employee = False
+            has_company = False
+            
+            # Check for employee profiles
+            if linkedin_lookup.employee_urls and len(linkedin_lookup.employee_urls) > 0:
+                employee_found_count += 1
+                has_employee = True
+            
+            # Check for company profiles
+            if linkedin_lookup.company_urls and len(linkedin_lookup.company_urls) > 0:
+                company_found_count += 1
+                has_company = True
+            
+            # Count overall success (either employee or company profiles found)
+            if has_employee or has_company:
+                overall_success_count += 1
+        
+        # Calculate percentages
+        if completed > 0:
+            employee_found_pct = round((employee_found_count / completed) * 100)
+            company_found_pct = round((company_found_count / completed) * 100)
+            overall_success_pct = round((overall_success_count / completed) * 100)
+        else:
+            employee_found_pct = company_found_pct = overall_success_pct = 0
+        
+        return {
+            'total_companies': total,
+            'completed_lookups': completed,
+            'progress_percentage': self.linkedin_lookup_progress,
+            'enabled': True,
+            'profile_breakdown': {
+                'employee_found': {'count': employee_found_count, 'percentage': employee_found_pct},
+                'company_found': {'count': company_found_count, 'percentage': company_found_pct},
+                'overall_success': {'count': overall_success_count, 'percentage': overall_success_pct},
+            }
+        }
 
 
 class CompanyNumber(models.Model):
@@ -602,3 +900,212 @@ class WebsiteHuntingResult(models.Model):
         """String representation of the website hunting result."""
         domain_count = len(self.domains_found) if self.domains_found else 0
         return f"Website hunting for {self.company_number.company_number} ({domain_count} domains found)"
+
+    @classmethod
+    def get_domain_suggestions(cls, limit: int = 20) -> List[Tuple[str, int]]:
+        """
+        Get most frequently found domains that are not already blacklisted.
+        
+        Returns:
+            List of tuples: [(domain, frequency), ...]
+        """
+        from django.db import connection
+        
+        # Get already blacklisted domains
+        blacklisted_domains = set(BlacklistDomain.objects.values_list('domain', flat=True))
+        
+        # Get all domains from WebsiteHuntingResult records
+        domain_counter: Counter[str] = Counter()
+        
+        # Use PostgreSQL-compatible raw SQL for better performance with JSON field
+        with connection.cursor() as cursor:
+            cursor.execute("""
+                SELECT domains_found 
+                FROM portal_websitehuntingresult 
+                WHERE domains_found IS NOT NULL 
+                AND domains_found != '[]'
+            """)
+            
+            for row in cursor.fetchall():
+                domains_json = row[0]
+                # Parse JSON string to Python list if needed
+                if isinstance(domains_json, str):
+                    import json
+                    try:
+                        domains_list = json.loads(domains_json)
+                    except json.JSONDecodeError:
+                        continue
+                elif isinstance(domains_json, list):
+                    domains_list = domains_json
+                else:
+                    continue
+                    
+                if domains_list:
+                    for domain in domains_list:
+                        if domain and isinstance(domain, str):
+                            # Skip already blacklisted domains
+                            if domain not in blacklisted_domains:
+                                domain_counter[domain] += 1
+        
+        # Return top domains with their frequencies
+        return domain_counter.most_common(limit)
+
+
+class WebsiteContactLookup(models.Model):
+    """
+    Website contact information lookup results.
+    Stores contact information extracted from approved domains.
+    """
+    company_number = models.OneToOneField(
+        CompanyNumber,
+        on_delete=models.CASCADE,
+        related_name="website_contact_lookup",
+        help_text=_("The company number this contact lookup belongs to")
+    )
+    domain_searched = models.CharField(
+        _("Domain Searched"),
+        max_length=255,
+        help_text=_("The domain that was searched for contact information")
+    )
+    phone_numbers = models.JSONField(
+        _("Phone Numbers"),
+        default=list,
+        help_text=_("List of phone numbers found on the website")
+    )
+    email_addresses = models.JSONField(
+        _("Email Addresses"),
+        default=list,
+        help_text=_("List of email addresses found on the website")
+    )
+    social_media_links = models.JSONField(
+        _("Social Media Links"),
+        default=dict,
+        help_text=_("Social media links found (Facebook, Instagram, LinkedIn)")
+    )
+    status = models.CharField(
+        _("Status"),
+        max_length=50,
+        help_text=_("Status of the contact extraction process")
+    )
+    processing_notes = models.TextField(
+        _("Processing Notes"),
+        help_text=_("Notes about the contact extraction process")
+    )
+    pages_crawled = models.PositiveIntegerField(
+        _("Pages Crawled"),
+        default=0,
+        help_text=_("Number of pages crawled during extraction")
+    )
+    created_at = models.DateTimeField(
+        _("Created at"),
+        auto_now_add=True
+    )
+
+    class Meta:
+        verbose_name = _("Website Contact Lookup")
+        verbose_name_plural = _("Website Contact Lookups")
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        """String representation of the website contact lookup."""
+        contact_count = len(self.phone_numbers) + len(self.email_addresses) + sum(
+            len(links) for links in self.social_media_links.values() if isinstance(links, list)
+        )
+        return f"Contact lookup for {self.company_number.company_number} ({contact_count} contacts found)"
+
+    @property
+    def total_contacts_found(self) -> int:
+        """Get total number of contact items found."""
+        total = len(self.phone_numbers) + len(self.email_addresses)
+        for links in self.social_media_links.values():
+            if isinstance(links, list):
+                total += len(links)
+        return total
+
+    @property
+    def has_contact_info(self) -> bool:
+        """Check if any contact information was found."""
+        return self.total_contacts_found > 0
+
+
+class LinkedinLookup(models.Model):
+    """
+    LinkedIn lookup results for company and employee profiles.
+    Stores LinkedIn URLs found via SERP API searches.
+    """
+    company_number = models.OneToOneField(
+        CompanyNumber,
+        on_delete=models.CASCADE,
+        related_name="linkedin_lookup",
+        help_text=_("The company number this LinkedIn lookup belongs to")
+    )
+    company_urls = models.JSONField(
+        _("Company URLs"),
+        default=list,
+        help_text=_("List of LinkedIn company profile URLs found")
+    )
+    employee_urls = models.JSONField(
+        _("Employee URLs"),
+        default=list,
+        help_text=_("List of LinkedIn employee profile URLs found")
+    )
+    search_query = models.TextField(
+        _("Search Query"),
+        help_text=_("The query used for LinkedIn search")
+    )
+    search_status = models.CharField(
+        _("Search Status"),
+        max_length=50,
+        help_text=_("Status of the LinkedIn search process")
+    )
+    processing_notes = models.TextField(
+        _("Processing Notes"),
+        help_text=_("Notes about the LinkedIn search process")
+    )
+    total_results_found = models.PositiveIntegerField(
+        _("Total Results Found"),
+        default=0,
+        help_text=_("Total number of LinkedIn profiles found")
+    )
+    approved_domain_used = models.CharField(
+        _("Approved Domain Used"),
+        max_length=255,
+        null=True,
+        blank=True,
+        help_text=_("The approved domain that was used for enhanced search")
+    )
+    created_at = models.DateTimeField(
+        _("Created at"),
+        auto_now_add=True
+    )
+
+    class Meta:
+        verbose_name = _("LinkedIn Lookup")
+        verbose_name_plural = _("LinkedIn Lookups")
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        """String representation of the LinkedIn lookup."""
+        return f"LinkedIn lookup for {self.company_number.company_number} ({self.total_linkedin_profiles} profiles found)"
+
+    @property
+    def total_linkedin_profiles(self) -> int:
+        """Get total number of LinkedIn profiles found."""
+        return len(self.company_urls) + len(self.employee_urls)
+
+    @property
+    def has_linkedin_profiles(self) -> bool:
+        """Check if any LinkedIn profiles were found."""
+        return self.total_linkedin_profiles > 0
+
+    @property
+    def best_company_profile(self) -> Optional[Dict[str, Any]]:
+        """Get the highest-scoring company profile."""
+        if not self.company_urls:
+            return None
+        return max(self.company_urls, key=lambda x: x.get('score', 0))
+
+    @property
+    def is_success(self) -> bool:
+        """Check if the LinkedIn search was successful."""
+        return self.search_status in ['SUCCESS', 'PARTIAL_SUCCESS']
