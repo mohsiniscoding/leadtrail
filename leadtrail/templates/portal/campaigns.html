@@ -438,6 +438,91 @@
               </a>
             </div>
           </div>
+
+          <!-- Step 6: LinkedIn Employees Review -->
+          <div class="bg-gray-50 rounded-lg p-6 border-l-4 border-teal-500">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-4">
+                <!-- Step Number -->
+                <div class="flex items-center justify-center w-8 h-8 bg-teal-500 text-white text-sm font-bold rounded-full">
+                  6
+                </div>
+                
+                <!-- Circular Progress -->
+                <div class="relative w-16 h-16">
+                  <svg class="w-16 h-16 transform -rotate-90" viewBox="0 0 32 32">
+                    <circle cx="16" cy="16" r="14" stroke="#e5e7eb" stroke-width="2" fill="none"/>
+                    <circle cx="16" cy="16" r="14" stroke="#10b981" stroke-width="2" fill="none"
+                            stroke-dasharray="{{campaign.linkedin_employee_review_progress}} 100"
+                            stroke-linecap="round"/>
+                  </svg>
+                  <div class="absolute inset-0 flex items-center justify-center">
+                    <span class="text-sm font-semibold text-gray-700">{{campaign.linkedin_employee_review_progress}}%</span>
+                  </div>
+                </div>
+                
+                <!-- Content -->
+                <div class="flex-1">
+                  <div class="flex items-center gap-2 mb-1">
+                    <h3 class="text-lg font-medium text-gray-900">LinkedIn Employees Review</h3>
+                    <div class="relative group">
+                      <svg class="w-4 h-4 text-blue-500 cursor-help" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                      </svg>
+                      <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 text-xs text-white bg-gray-900 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-50 w-64">
+                        Review and approve LinkedIn employee profiles found through website contact extraction and profile discovery.
+                        <div class="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                      </div>
+                    </div>
+                  </div>
+                  <div id="linkedin-employee-review-progress-{{ campaign.id }}">
+                    {% with stats=campaign.linkedin_employee_review_stats %}
+                      <p class="text-sm text-gray-600 mb-2">{{ stats.reviewed_companies }}/{{ stats.eligible_companies }} companies reviewed</p>
+                      <div class="flex space-x-4 text-xs text-gray-500">
+                        <div class="relative group">
+                          <span class="cursor-help">👥 {{ stats.total_approved }} employees approved</span>
+                          <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 text-xs text-white bg-gray-900 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-50 w-64">
+                            {{ stats.total_approved }} LinkedIn employee profiles have been approved out of {{ stats.total_urls_found }} found across all reviewed companies
+                            <div class="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                          </div>
+                        </div>
+                        <div class="relative group">
+                          <span class="cursor-help">🎯 {{ stats.approval_rate }}% approval rate</span>
+                          <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 text-xs text-white bg-gray-900 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-50 w-64">
+                            {{ stats.companies_with_approvals }} out of {{ stats.reviewed_companies }} reviewed companies have at least one approved employee profile
+                            <div class="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                          </div>
+                        </div>
+                        <div class="relative group">
+                          <span class="cursor-help">📊 {{ stats.total_urls_found }} total found</span>
+                          <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 text-xs text-white bg-gray-900 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-50 w-64">
+                            {{ stats.total_urls_found }} LinkedIn employee profile URLs found across all reviewed companies from both website crawling and LinkedIn discovery
+                            <div class="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                          </div>
+                        </div>
+                      </div>
+                    {% endwith %}
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Action Buttons -->
+              <div class="flex space-x-2">
+                <a href="{% url 'portal:linkedin_employee_review' campaign.id %}" class="inline-flex items-center px-3 py-1 bg-teal-600 text-white text-xs rounded hover:bg-teal-700 transition-colors no-underline">
+                  <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+                  </svg>
+                  Perform Review & Approve
+                </a>
+                <a href="#" class="inline-flex items-center px-3 py-1 bg-white border border-gray-300 text-gray-700 text-xs rounded hover:bg-gray-50 transition-colors">
+                  <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                  </svg>
+                  Export
+                </a>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
       {% endfor %}

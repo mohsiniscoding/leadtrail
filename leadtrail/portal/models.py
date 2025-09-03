@@ -356,6 +356,72 @@ class Campaign(models.Model):
             }
         }
 
+    @property
+    def linkedin_employee_review_progress(self):
+        """Calculate progress percentage of LinkedIn Employee Review."""
+        # Companies eligible for review: have both website contact lookup and linkedin lookup
+        eligible_companies = self.company_numbers.filter(
+            website_contact_lookup__isnull=False,
+            linkedin_lookup__isnull=False
+        ).count()
+        
+        if eligible_companies == 0:
+            return 0
+        
+        # Companies that have been reviewed
+        reviewed_companies = self.company_numbers.filter(
+            linkedin_employee_review__isnull=False
+        ).count()
+        
+        return round((reviewed_companies / eligible_companies) * 100)
+
+    @property
+    def linkedin_employee_review_stats(self):
+        """Get LinkedIn employee review statistics with breakdown for display."""
+        # Count eligible companies (have both contact extraction and linkedin lookup)
+        eligible_companies = self.company_numbers.filter(
+            website_contact_lookup__isnull=False,
+            linkedin_lookup__isnull=False
+        ).count()
+        
+        # Count reviewed companies
+        reviewed_companies = self.company_numbers.filter(
+            linkedin_employee_review__isnull=False
+        ).count()
+        
+        # Initialize URL counters
+        total_urls_found = 0
+        total_approved = 0
+        companies_with_approvals = 0
+        
+        # Process each reviewed company's data
+        for company in self.company_numbers.filter(
+            linkedin_employee_review__isnull=False
+        ).select_related('linkedin_employee_review'):
+            
+            employee_review = company.linkedin_employee_review
+            total_urls_found += employee_review.total_urls_found
+            total_approved += employee_review.total_approved
+            
+            if employee_review.has_approved_employees:
+                companies_with_approvals += 1
+        
+        # Calculate percentages
+        if reviewed_companies > 0:
+            approval_rate = round((companies_with_approvals / reviewed_companies) * 100)
+        else:
+            approval_rate = 0
+        
+        return {
+            'eligible_companies': eligible_companies,
+            'reviewed_companies': reviewed_companies,
+            'total_urls_found': total_urls_found,
+            'total_approved': total_approved,
+            'companies_with_approvals': companies_with_approvals,
+            'approval_rate': approval_rate,
+            'progress_percentage': self.linkedin_employee_review_progress
+        }
+
 
 class CompanyNumber(models.Model):
     """
@@ -1091,3 +1157,78 @@ class LinkedinLookup(models.Model):
     def is_success(self) -> bool:
         """Check if the LinkedIn search was successful."""
         return self.search_status in ['SUCCESS', 'PARTIAL_SUCCESS']
+
+
+class LinkedinEmployeeReview(models.Model):
+    """
+    LinkedIn employee review results for approved employee profiles.
+    Consolidates LinkedIn employee URLs from both website contact extraction and LinkedIn profile discovery.
+    """
+    company_number = models.OneToOneField(
+        CompanyNumber,
+        on_delete=models.CASCADE,
+        related_name="linkedin_employee_review",
+        help_text=_("The company number this LinkedIn employee review belongs to")
+    )
+    approved_employee_urls = models.JSONField(
+        _("Approved Employee URLs"),
+        default=list,
+        help_text=_("List of approved LinkedIn employee profile URLs with metadata")
+    )
+    source_breakdown = models.JSONField(
+        _("Source Breakdown"),
+        default=dict,
+        help_text=_("Statistics about URL sources (website vs linkedin discovery)")
+    )
+    review_status = models.CharField(
+        _("Review Status"),
+        max_length=50,
+        default="PENDING",
+        help_text=_("Status of the LinkedIn employee review process")
+    )
+    reviewed_at = models.DateTimeField(
+        _("Reviewed At"),
+        null=True,
+        blank=True,
+        help_text=_("When the review was completed")
+    )
+    total_urls_found = models.PositiveIntegerField(
+        _("Total URLs Found"),
+        default=0,
+        help_text=_("Total number of LinkedIn employee URLs found from both sources")
+    )
+    total_approved = models.PositiveIntegerField(
+        _("Total Approved"),
+        default=0,
+        help_text=_("Total number of employee URLs approved by human review")
+    )
+    created_at = models.DateTimeField(
+        _("Created at"),
+        auto_now_add=True
+    )
+
+    class Meta:
+        verbose_name = _("LinkedIn Employee Review")
+        verbose_name_plural = _("LinkedIn Employee Reviews")
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        """String representation of the LinkedIn employee review."""
+        return f"Employee review for {self.company_number.company_number} ({self.total_approved}/{self.total_urls_found} approved)"
+
+    @property
+    def has_approved_employees(self) -> bool:
+        """Check if any employee URLs were approved."""
+        return self.total_approved > 0
+
+    @property
+    def approval_rate(self) -> float:
+        """Get approval rate as percentage."""
+        if self.total_urls_found == 0:
+            return 0.0
+        return (self.total_approved / self.total_urls_found) * 100
+
+    @property
+    def is_completed(self) -> bool:
+        """Check if the review process is completed."""
+        return self.review_status == "COMPLETED"

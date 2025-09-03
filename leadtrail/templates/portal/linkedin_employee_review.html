@@ -1,0 +1,266 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}LinkedIn Employees Review - {{ campaign.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Header -->
+    <div class="mb-8">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900">LinkedIn Employees Review</h1>
+                <p class="mt-2 text-lg text-gray-600">
+                    Campaign: <span class="font-semibold">{{ campaign.name }}</span>
+                </p>
+                <p class="text-sm text-gray-500 mt-1">
+                    Review and approve LinkedIn employee profiles from LinkedIn Profile Discovery and Website Contact Extraction (when available)
+                </p>
+            </div>
+            <a href="{% url 'portal:home' %}" 
+               class="inline-flex items-center px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 rounded-lg transition-colors">
+                ← Back to Campaigns
+            </a>
+        </div>
+    </div>
+
+    <!-- Filter Controls -->
+    <div class="mb-6 bg-white border border-gray-200 rounded-lg p-4">
+        <h3 class="text-sm font-medium text-gray-900 mb-3">Filter Options</h3>
+        <div class="flex flex-wrap gap-4">
+            <div class="flex items-center">
+                <input type="checkbox" 
+                       id="nonZeroEmployees" 
+                       name="non_zero_employees" 
+                       value="true" 
+                       {% if non_zero_filter == 'true' %}checked{% endif %}
+                       class="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded"
+                       onchange="toggleFilter('non_zero_employees', this.checked)">
+                <label for="nonZeroEmployees" class="ml-2 text-sm text-gray-700 cursor-pointer">
+                    Show only companies with LinkedIn employees
+                </label>
+            </div>
+        </div>
+    </div>
+
+    {% if not processed_companies %}
+        <!-- No companies available -->
+        <div class="text-center py-12">
+            <div class="mx-auto h-12 w-12 text-gray-400">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                          d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2 2h16V13z"/>
+                </svg>
+            </div>
+            <h3 class="mt-2 text-sm font-medium text-gray-900">No companies ready for LinkedIn employee review</h3>
+            <p class="mt-1 text-sm text-gray-500">
+                Companies need LinkedIn Profile Discovery data to be available for review.
+            </p>
+        </div>
+    {% else %}
+        <!-- Companies with LinkedIn employee data -->
+        <div class="space-y-8">
+            {% for company_data in processed_companies %}
+                {% with company=company_data.company linkedin_employees=company_data.linkedin_employees %}
+                <form method="post" class="company-form">
+                    {% csrf_token %}
+                    <input type="hidden" name="company_id" value="{{ company.id }}">
+                    <!-- Preserve pagination state -->
+                    <input type="hidden" name="page" value="{{ request.GET.page|default:1 }}">
+                    <input type="hidden" name="non_zero_employees" value="{{ request.GET.non_zero_employees|default:'false' }}">
+                    
+                    <div class="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+                    <!-- Company Header -->
+                    <div class="px-6 py-4 bg-teal-50 border-b border-teal-100">
+                        <div class="flex items-start justify-between">
+                            <div class="flex-1">
+                                <h3 class="text-lg font-semibold text-gray-900">
+                                    Company #{{ company.company_number }}
+                                </h3>
+                                <div class="mt-2 space-y-1">
+                                    {% if company.house_data.company_name %}
+                                        <p class="text-sm text-gray-700">
+                                            <span class="font-medium">Name:</span> {{ company.house_data.company_name }}
+                                        </p>
+                                    {% endif %}
+                                    {% if company.website_hunting_result.approved_domain %}
+                                        <p class="text-sm text-gray-700">
+                                            <span class="font-medium">Approved Domain:</span> 
+                                            <a href="https://{{ company.website_hunting_result.approved_domain }}" 
+                                               target="_blank" 
+                                               class="text-teal-600 hover:text-teal-800 hover:underline">
+                                                {{ company.website_hunting_result.approved_domain }}
+                                            </a>
+                                        </p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <div class="flex flex-col space-y-1">
+                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-teal-100 text-teal-800">
+                                        {{ linkedin_employees.total_count }} LinkedIn Profile{{ linkedin_employees.total_count|pluralize }}
+                                    </span>
+                                    {% if linkedin_employees.approved_urls %}
+                                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                            {{ linkedin_employees.approved_urls|length }} Previously Approved
+                                        </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- LinkedIn Employee URLs -->
+                    <div class="px-6 py-4">
+                        {% if linkedin_employees.total_count > 0 %}
+                            <div class="space-y-6">
+                                <!-- Website Crawling Results -->
+                                {% if linkedin_employees.website_crawling %}
+                                    <div>
+                                        <h4 class="text-md font-medium text-gray-900 mb-3 flex items-center">
+                                            <span class="inline-block w-3 h-3 bg-green-500 rounded-full mr-2"></span>
+                                            Website Contact Extraction ({{ linkedin_employees.website_crawling|length }})
+                                        </h4>
+                                        <div class="space-y-2">
+                                            {% for url in linkedin_employees.website_crawling %}
+                                                <div class="flex items-center justify-between py-2 px-3 bg-green-50 rounded-lg border border-green-100">
+                                                    <div class="flex items-center space-x-3 flex-1">
+                                                        <input type="checkbox" 
+                                                               id="website_{{ forloop.parent.counter }}_{{ forloop.counter }}"
+                                                               name="approved_urls"
+                                                               value="{{ url }}"
+                                                               {% if url in linkedin_employees.approved_urls %}checked{% endif %}
+                                                               class="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded">
+                                                        <label for="website_{{ forloop.parent.counter }}_{{ forloop.counter }}" 
+                                                               class="flex-1 cursor-pointer">
+                                                            <a href="{{ url }}" 
+                                                               target="_blank" 
+                                                               class="text-sm text-blue-600 hover:text-blue-800 hover:underline break-all">
+                                                                {{ url }}
+                                                            </a>
+                                                        </label>
+                                                    </div>
+                                                    <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-green-100 text-green-800">
+                                                        Website
+                                                    </span>
+                                                </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                {% endif %}
+
+                                <!-- LinkedIn Discovery Results -->
+                                {% if linkedin_employees.linkedin_discovery %}
+                                    <div>
+                                        <h4 class="text-md font-medium text-gray-900 mb-3 flex items-center">
+                                            <span class="inline-block w-3 h-3 bg-blue-500 rounded-full mr-2"></span>
+                                            LinkedIn Profile Discovery ({{ linkedin_employees.linkedin_discovery|length }})
+                                        </h4>
+                                        <div class="space-y-2">
+                                            {% for url in linkedin_employees.linkedin_discovery %}
+                                                <div class="flex items-center justify-between py-2 px-3 bg-blue-50 rounded-lg border border-blue-100">
+                                                    <div class="flex items-center space-x-3 flex-1">
+                                                        <input type="checkbox" 
+                                                               id="discovery_{{ forloop.parent.counter }}_{{ forloop.counter }}"
+                                                               name="approved_urls"
+                                                               value="{{ url }}"
+                                                               {% if url in linkedin_employees.approved_urls %}checked{% endif %}
+                                                               class="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded">
+                                                        <label for="discovery_{{ forloop.parent.counter }}_{{ forloop.counter }}" 
+                                                               class="flex-1 cursor-pointer">
+                                                            <a href="{{ url }}" 
+                                                               target="_blank" 
+                                                               class="text-sm text-blue-600 hover:text-blue-800 hover:underline break-all">
+                                                                {{ url }}
+                                                            </a>
+                                                        </label>
+                                                    </div>
+                                                    <span class="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                                                        LinkedIn
+                                                    </span>
+                                                </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% else %}
+                            <div class="text-center py-6">
+                                <p class="text-sm text-gray-500">No LinkedIn employee profiles found for this company.</p>
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Action Buttons -->
+                    {% if linkedin_employees.total_count > 0 %}
+                        <div class="px-6 py-4 bg-gray-50 border-t border-gray-100">
+                            <div class="flex items-center justify-between">
+                                <div class="text-sm text-gray-600">
+                                    Select LinkedIn profiles to approve for outreach
+                                </div>
+                                <div>
+                                    <button type="submit"
+                                            class="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white text-sm font-medium rounded-md transition-colors">
+                                        Save Selection
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+                    </div>
+                </form>
+                {% endwith %}
+            {% endfor %}
+        </div>
+
+        <!-- Pagination -->
+        {% if is_paginated %}
+            <div class="mt-8 flex items-center justify-center">
+                <nav class="flex items-center space-x-2">
+                    {% if page_obj.has_previous %}
+                        <a href="?page=1{% if non_zero_filter == 'true' %}&non_zero_employees=true{% endif %}" 
+                           class="px-3 py-2 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md">
+                            First
+                        </a>
+                        <a href="?page={{ page_obj.previous_page_number }}{% if non_zero_filter == 'true' %}&non_zero_employees=true{% endif %}" 
+                           class="px-3 py-2 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md">
+                            Previous
+                        </a>
+                    {% endif %}
+                    
+                    <span class="px-4 py-2 text-sm text-gray-700">
+                        Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                    </span>
+                    
+                    {% if page_obj.has_next %}
+                        <a href="?page={{ page_obj.next_page_number }}{% if non_zero_filter == 'true' %}&non_zero_employees=true{% endif %}" 
+                           class="px-3 py-2 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md">
+                            Next
+                        </a>
+                        <a href="?page={{ page_obj.paginator.num_pages }}{% if non_zero_filter == 'true' %}&non_zero_employees=true{% endif %}" 
+                           class="px-3 py-2 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md">
+                            Last
+                        </a>
+                    {% endif %}
+                </nav>
+            </div>
+        {% endif %}
+    {% endif %}
+</div>
+
+<!-- JavaScript for interaction -->
+<script>
+    function toggleFilter(filterName, checked) {
+        const url = new URL(window.location);
+        if (checked) {
+            url.searchParams.set(filterName, 'true');
+        } else {
+            url.searchParams.delete(filterName);
+        }
+        // Reset to page 1 when filtering
+        url.searchParams.delete('page');
+        window.location.href = url.toString();
+    }
+
+</script>
+{% endblock %}

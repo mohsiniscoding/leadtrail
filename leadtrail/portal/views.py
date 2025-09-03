@@ -7,10 +7,11 @@ from django.contrib import messages
 from django.http import HttpResponseRedirect, JsonResponse
 from django.urls import reverse
 from django.utils.decorators import method_decorator
+from django.utils import timezone
 from django.views.generic import ListView, TemplateView
 from django.views.decorators.http import require_POST
 
-from .models import Campaign, CompanyNumber, SERPExcludedDomain, BlacklistDomain, ZenSERPQuota, SearchKeyword, WebsiteHuntingResult, WebsiteContactLookup, LinkedinLookup
+from .models import Campaign, CompanyNumber, SERPExcludedDomain, BlacklistDomain, ZenSERPQuota, SearchKeyword, WebsiteHuntingResult, LinkedinEmployeeReview
 from leadtrail.exports.companies_house_lookup import generate_companies_house_csv
 from leadtrail.exports.vat_lookup import generate_vat_lookup_csv
 from leadtrail.exports.website_hunting import generate_website_hunting_csv
@@ -356,6 +357,227 @@ class WebsiteHumanReviewView(ListView):
         return HttpResponseRedirect(f"{redirect_url}?page={page}&per_page={per_page}&non_zero_score={non_zero_score}")
 
 
+@method_decorator(login_required, name='dispatch')
+class LinkedinEmployeeReviewView(ListView):
+    """
+    View for human review of LinkedIn employee URLs from both Website Contact Extraction 
+    and LinkedIn Profile Discovery sources.
+    """
+    model = CompanyNumber
+    template_name = "portal/linkedin_employee_review.html"
+    context_object_name = "companies"
+    paginate_by = 10
+    
+    def get_queryset(self):
+        """Get companies for the specified campaign that have LinkedIn lookup data."""
+        campaign_id = self.kwargs.get('campaign_id')
+        queryset = CompanyNumber.objects.filter(
+            campaign_id=campaign_id,
+            linkedin_lookup__isnull=False  # Has LinkedIn profile discovery (required)
+        ).select_related(
+            'house_data', 'vat_lookup', 'website_hunting_result', 
+            'website_contact_lookup', 'linkedin_lookup', 'linkedin_employee_review'
+        )
+        
+        # Apply non-zero filter if requested
+        non_zero_filter = self.request.GET.get('non_zero_employees')
+        if non_zero_filter == 'true':
+            # Get all companies and filter in Python for simplicity
+            all_companies = list(queryset)
+            filtered_companies = []
+            
+            for company in all_companies:
+                linkedin_data = self._extract_linkedin_employees(company)
+                if linkedin_data['total_count'] > 0:
+                    filtered_companies.append(company.id)
+            
+            # Filter queryset by the company IDs that have LinkedIn employees
+            queryset = queryset.filter(id__in=filtered_companies)
+        
+        return queryset.order_by('created_at')
+    
+    def get_context_data(self, **kwargs):
+        """Add campaign and LinkedIn employee data context."""
+        context = super().get_context_data(**kwargs)
+        campaign_id = self.kwargs.get('campaign_id')
+        campaign = Campaign.objects.get(id=campaign_id)
+        
+        context['campaign'] = campaign
+        context['non_zero_filter'] = self.request.GET.get('non_zero_employees', 'false')
+        
+        # Process LinkedIn employee URLs for each company
+        processed_companies = []
+        for company in context['companies']:
+            company_data = {
+                'company': company,
+                'linkedin_employees': self._extract_linkedin_employees(company)
+            }
+            processed_companies.append(company_data)
+        
+        context['processed_companies'] = processed_companies
+        return context
+    
+    def _extract_linkedin_employees(self, company):
+        """
+        Extract LinkedIn employee URLs from LinkedIn Profile Discovery (required) and 
+        Website Contact Extraction (optional, only if available).
+        
+        Args:
+            company: CompanyNumber instance with linkedin_lookup (required) and 
+                    website_contact_lookup (optional)
+        
+        Returns:
+            dict: Contains 'website_crawling', 'linkedin_discovery', 'total_count', and 'approved_urls'
+        """
+        linkedin_employees = {
+            'website_crawling': [],
+            'linkedin_discovery': [],
+            'total_count': 0,
+            'approved_urls': set()  # Track which URLs are already approved
+        }
+        
+        # Get previously approved URLs if they exist
+        try:
+            if hasattr(company, 'linkedin_employee_review') and company.linkedin_employee_review:
+                approved_records = company.linkedin_employee_review.approved_employee_urls
+                if approved_records:
+                    for record in approved_records:
+                        if isinstance(record, dict) and 'url' in record:
+                            linkedin_employees['approved_urls'].add(record['url'])
+        except Exception:
+            pass
+        
+        # Extract from Website Contact Extraction (social_media_links.linkedin)
+        try:
+            if (hasattr(company, 'website_contact_lookup') and 
+                company.website_contact_lookup and 
+                company.website_contact_lookup.social_media_links):
+                
+                social_links = company.website_contact_lookup.social_media_links
+                if isinstance(social_links, dict) and 'linkedin' in social_links:
+                    linkedin_urls = social_links['linkedin']
+                    if isinstance(linkedin_urls, list):
+                        # Filter for employee/people profiles (not company pages)
+                        employee_urls = [
+                            url for url in linkedin_urls 
+                            if '/in/' in url  # Employee profiles contain '/in/'
+                        ]
+                        linkedin_employees['website_crawling'] = employee_urls
+        except (AttributeError, TypeError):
+            pass
+        
+        # Extract from LinkedIn Profile Discovery (employee_urls)
+        try:
+            if (hasattr(company, 'linkedin_lookup') and 
+                company.linkedin_lookup and 
+                company.linkedin_lookup.employee_urls):
+                
+                employee_urls = company.linkedin_lookup.employee_urls
+                if isinstance(employee_urls, list):
+                    # Extract just the URLs from the employee_urls objects
+                    discovery_urls = [
+                        emp_obj.get('url', '') for emp_obj in employee_urls 
+                        if isinstance(emp_obj, dict) and emp_obj.get('url')
+                    ]
+                    linkedin_employees['linkedin_discovery'] = discovery_urls
+        except (AttributeError, TypeError):
+            pass
+        
+        # Calculate total count
+        linkedin_employees['total_count'] = (
+            len(linkedin_employees['website_crawling']) + 
+            len(linkedin_employees['linkedin_discovery'])
+        )
+        
+        return linkedin_employees
+    
+    def post(self, request, *args, **kwargs):
+        """Handle LinkedIn employee URL approvals."""
+        try:
+            company_id = request.POST.get('company_id')
+            approved_urls = request.POST.getlist('approved_urls')  # Get list of selected URLs
+            
+            if not company_id:
+                messages.error(request, 'Company ID is required')
+                return self._redirect_with_pagination(request)
+            
+            try:
+                company = CompanyNumber.objects.get(id=company_id)
+            except CompanyNumber.DoesNotExist:
+                messages.error(request, 'Company not found')
+                return self._redirect_with_pagination(request)
+            
+            # Get or create LinkedinEmployeeReview record
+            linkedin_review, created = LinkedinEmployeeReview.objects.get_or_create(
+                company_number=company,
+                defaults={
+                    'approved_employee_urls': [],
+                    'source_breakdown': {},
+                    'review_status': 'PENDING'
+                }
+            )
+            
+            # Extract LinkedIn employee data to determine sources
+            linkedin_data = self._extract_linkedin_employees(company)
+            
+            # Build source breakdown for approved URLs
+            source_breakdown = {
+                'website_crawling': [],
+                'linkedin_discovery': []
+            }
+            
+            approved_urls_with_source = []
+            
+            for url in approved_urls:
+                url_data = {'url': url, 'approved_at': timezone.now().isoformat()}
+                
+                # Determine source of each approved URL
+                if url in linkedin_data['website_crawling']:
+                    url_data['source'] = 'website_crawling'
+                    source_breakdown['website_crawling'].append(url)
+                elif url in linkedin_data['linkedin_discovery']:
+                    url_data['source'] = 'linkedin_discovery'
+                    source_breakdown['linkedin_discovery'].append(url)
+                else:
+                    url_data['source'] = 'unknown'
+                
+                approved_urls_with_source.append(url_data)
+            
+            # Update the review record
+            linkedin_review.approved_employee_urls = approved_urls_with_source
+            linkedin_review.source_breakdown = source_breakdown
+            linkedin_review.review_status = 'APPROVED' if approved_urls else 'PENDING'
+            linkedin_review.save()
+            
+            # Success message
+            if approved_urls:
+                messages.success(
+                    request, 
+                    f"✓ {len(approved_urls)} LinkedIn profile(s) approved for Company #{company.company_number}"
+                )
+            else:
+                messages.info(
+                    request, 
+                    f"No LinkedIn profiles selected for Company #{company.company_number}"
+                )
+                
+        except Exception as e:
+            messages.error(request, f"Error saving LinkedIn approvals: {str(e)}")
+        
+        return self._redirect_with_pagination(request)
+    
+    def _redirect_with_pagination(self, request):
+        """Redirect back to the same page preserving pagination and filters."""
+        campaign_id = self.kwargs.get('campaign_id')
+        page = request.GET.get('page', 1)
+        non_zero_employees = request.GET.get('non_zero_employees', 'false')
+        
+        redirect_url = reverse('portal:linkedin_employee_review', kwargs={'campaign_id': campaign_id})
+        params = f"?page={page}&non_zero_employees={non_zero_employees}"
+        
+        return HttpResponseRedirect(f"{redirect_url}{params}")
+
+
 @require_POST
 @login_required
 def delete_campaign(request, campaign_id):
@@ -456,35 +678,6 @@ def add_suggested_domain(request):
         }, status=500)
 
 
-@require_POST
-@login_required
-def toggle_linkedin_lookup(request):
-    """Toggle LinkedIn lookup for a campaign."""
-    try:
-        campaign_id = request.POST.get('campaign_id')
-        
-        if not campaign_id:
-            messages.error(request, 'Campaign ID is required')
-            return HttpResponseRedirect(reverse('portal:home'))
-        
-        try:
-            campaign = Campaign.objects.get(id=campaign_id)
-        except Campaign.DoesNotExist:
-            messages.error(request, 'Campaign not found')
-            return HttpResponseRedirect(reverse('portal:home'))
-        
-        # Toggle LinkedIn lookup status
-        campaign.linkedin_lookup_enabled = not campaign.linkedin_lookup_enabled
-        campaign.save()
-        
-        # Add success message
-        messages.success(request, f"LinkedIn lookup {'enabled' if campaign.linkedin_lookup_enabled else 'disabled'} for campaign '{campaign.name}'")
-        
-        return HttpResponseRedirect(reverse('portal:home'))
-        
-    except Exception as e:
-        messages.error(request, f"Error toggling LinkedIn lookup: {str(e)}")
-        return HttpResponseRedirect(reverse('portal:home'))
 
 
 @require_POST
