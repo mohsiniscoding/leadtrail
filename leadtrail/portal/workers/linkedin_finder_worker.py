@@ -48,7 +48,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Configuration
-DEFAULT_BATCH_SIZE = 5
+DEFAULT_BATCH_SIZE = 10
 
 # Global flag for graceful shutdown
 shutdown_requested = False

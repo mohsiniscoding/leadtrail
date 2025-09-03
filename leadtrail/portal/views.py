@@ -273,6 +273,17 @@ class WebsiteHumanReviewView(ListView):
             # Filter queryset by the company IDs that have non-zero scores
             queryset = queryset.filter(id__in=filtered_companies)
         
+        # Apply unapproved filter if requested
+        unapproved_filter = self.request.GET.get('unapproved_only')
+        if unapproved_filter == 'true':
+            # Show only companies that haven't been approved yet
+            # This includes companies with no website_hunting_result or approved_by_human=False
+            from django.db import models
+            queryset = queryset.filter(
+                models.Q(website_hunting_result__isnull=True) |
+                models.Q(website_hunting_result__approved_by_human=False)
+            )
+        
         return queryset.order_by('created_at')
     
     def get_paginate_by(self, queryset):
@@ -296,6 +307,7 @@ class WebsiteHumanReviewView(ListView):
         context['per_page_options'] = [10, 25, 50]
         context['current_per_page'] = self.get_paginate_by(None)
         context['non_zero_filter'] = self.request.GET.get('non_zero_score', 'false')
+        context['unapproved_filter'] = self.request.GET.get('unapproved_only', 'false')
         
         # Add blacklisted domains for UI indication
         blacklisted_domains = set(BlacklistDomain.objects.values_list('domain', flat=True))

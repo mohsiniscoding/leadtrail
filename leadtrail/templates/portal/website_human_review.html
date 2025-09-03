@@ -38,6 +38,14 @@
           Show only non-zero scores
         </label>
       </div>
+      
+      <!-- Unapproved Filter -->
+      <div class="flex items-center space-x-2">
+        <label for="unapproved_filter" class="text-sm text-gray-600">
+          <input type="checkbox" id="unapproved_filter" {% if unapproved_filter == 'true' %}checked{% endif %} class="mr-1">
+          Show only un-approved
+        </label>
+      </div>
     </div>
     
     {% if page_obj %}
@@ -122,9 +130,10 @@
           <!-- Ranked Domains -->
           {% if company.website_hunting_result.ranked_domains %}
             <div>
-              <h5 class="font-medium text-gray-900 mb-3">Found Domains ({{ company.website_hunting_result.ranked_domains|length }})</h5>
+              <h5 class="font-medium text-gray-900 mb-3">Quality Domains (Score > 0)</h5>
               <div class="grid gap-3">
                 {% for domain_result in company.website_hunting_result.ranked_domains %}
+                {% if domain_result.score > 0 %}
                 <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
                   <div class="flex-1">
                     <div class="flex items-center space-x-3">
@@ -164,6 +173,7 @@
                     </div>
                   {% endif %}
                 </div>
+                {% endif %}
                 {% endfor %}
               </div>
             </div>
@@ -198,10 +208,10 @@
   <div class="mt-8 flex items-center justify-between">
     <div class="flex items-center space-x-2">
       {% if page_obj.has_previous %}
-        <a href="?page=1&per_page={{ current_per_page }}&non_zero_score={{ non_zero_filter }}" class="px-3 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300">
+        <a href="?page=1&per_page={{ current_per_page }}&non_zero_score={{ non_zero_filter }}&unapproved_only={{ unapproved_filter }}" class="px-3 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300">
           First
         </a>
-        <a href="?page={{ page_obj.previous_page_number }}&per_page={{ current_per_page }}&non_zero_score={{ non_zero_filter }}" class="px-3 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300">
+        <a href="?page={{ page_obj.previous_page_number }}&per_page={{ current_per_page }}&non_zero_score={{ non_zero_filter }}&unapproved_only={{ unapproved_filter }}" class="px-3 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300">
           Previous
         </a>
       {% endif %}
@@ -213,10 +223,10 @@
     
     <div class="flex items-center space-x-2">
       {% if page_obj.has_next %}
-        <a href="?page={{ page_obj.next_page_number }}&per_page={{ current_per_page }}&non_zero_score={{ non_zero_filter }}" class="px-3 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300">
+        <a href="?page={{ page_obj.next_page_number }}&per_page={{ current_per_page }}&non_zero_score={{ non_zero_filter }}&unapproved_only={{ unapproved_filter }}" class="px-3 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300">
           Next
         </a>
-        <a href="?page={{ page_obj.paginator.num_pages }}&per_page={{ current_per_page }}&non_zero_score={{ non_zero_filter }}" class="px-3 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300">
+        <a href="?page={{ page_obj.paginator.num_pages }}&per_page={{ current_per_page }}&non_zero_score={{ non_zero_filter }}&unapproved_only={{ unapproved_filter }}" class="px-3 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300">
           Last
         </a>
       {% endif %}
@@ -301,6 +311,14 @@ document.getElementById('per_page').addEventListener('change', function() {
 document.getElementById('non_zero_filter').addEventListener('change', function() {
   const url = new URL(window.location);
   url.searchParams.set('non_zero_score', this.checked ? 'true' : 'false');
+  url.searchParams.set('page', '1'); // Reset to first page
+  window.location.href = url.toString();
+});
+
+// Unapproved filter
+document.getElementById('unapproved_filter').addEventListener('change', function() {
+  const url = new URL(window.location);
+  url.searchParams.set('unapproved_only', this.checked ? 'true' : 'false');
   url.searchParams.set('page', '1'); // Reset to first page
   window.location.href = url.toString();
 });
