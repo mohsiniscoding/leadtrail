@@ -106,3 +106,4 @@ The application uses Celery with Redis for asynchronous task processing. Schedul
 - Uses Cookiecutter Django project structure
 - Configured for Heroku deployment with Procfile
 - Type checking with mypy and code quality enforced with ruff
+- no not commit, add, push to github with consent and do not perform this step if not specifically asked

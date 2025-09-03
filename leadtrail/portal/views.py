@@ -256,15 +256,19 @@ class WebsiteHumanReviewView(ListView):
             filtered_companies = []
             
             for company in all_companies:
-                if (company.website_hunting_result and 
-                    company.website_hunting_result.ranked_domains):
-                    # Check if any domain has a score > 0
-                    has_non_zero_score = any(
-                        domain.get('score', 0) > 0 
-                        for domain in company.website_hunting_result.ranked_domains
-                    )
-                    if has_non_zero_score:
-                        filtered_companies.append(company.id)
+                try:
+                    if (company.website_hunting_result and 
+                        company.website_hunting_result.ranked_domains):
+                        # Check if any domain has a score > 0
+                        has_non_zero_score = any(
+                            domain.get('score', 0) > 0 
+                            for domain in company.website_hunting_result.ranked_domains
+                        )
+                        if has_non_zero_score:
+                            filtered_companies.append(company.id)
+                except CompanyNumber.website_hunting_result.RelatedObjectDoesNotExist:
+                    # Company has no website hunting result, skip it
+                    continue
             
             # Filter queryset by the company IDs that have non-zero scores
             queryset = queryset.filter(id__in=filtered_companies)
@@ -448,37 +452,27 @@ def toggle_linkedin_lookup(request):
         campaign_id = request.POST.get('campaign_id')
         
         if not campaign_id:
-            return JsonResponse({
-                'error': 'Campaign ID is required'
-            }, status=400)
+            messages.error(request, 'Campaign ID is required')
+            return HttpResponseRedirect(reverse('portal:home'))
         
         try:
             campaign = Campaign.objects.get(id=campaign_id)
         except Campaign.DoesNotExist:
-            return JsonResponse({
-                'error': 'Campaign not found'
-            }, status=404)
+            messages.error(request, 'Campaign not found')
+            return HttpResponseRedirect(reverse('portal:home'))
         
         # Toggle LinkedIn lookup status
         campaign.linkedin_lookup_enabled = not campaign.linkedin_lookup_enabled
         campaign.save()
         
-        # Return updated status and progress
-        linkedin_stats = campaign.linkedin_lookup_stats
+        # Add success message
+        messages.success(request, f"LinkedIn lookup {'enabled' if campaign.linkedin_lookup_enabled else 'disabled'} for campaign '{campaign.name}'")
         
-        return JsonResponse({
-            'success': True,
-            'linkedin_lookup_enabled': campaign.linkedin_lookup_enabled,
-            'progress_percentage': linkedin_stats['progress_percentage'],
-            'completed_lookups': linkedin_stats['completed_lookups'],
-            'total_companies': linkedin_stats['total_companies'],
-            'message': f"LinkedIn lookup {'enabled' if campaign.linkedin_lookup_enabled else 'disabled'} for campaign '{campaign.name}'"
-        })
+        return HttpResponseRedirect(reverse('portal:home'))
         
     except Exception as e:
-        return JsonResponse({
-            'error': f"Error toggling LinkedIn lookup: {str(e)}"
-        }, status=500)
+        messages.error(request, f"Error toggling LinkedIn lookup: {str(e)}")
+        return HttpResponseRedirect(reverse('portal:home'))
 
 
 @require_POST
@@ -602,3 +596,26 @@ def export_linkedin_finder_csv(request, campaign_id):
     except Campaign.DoesNotExist:
         messages.error(request, "Campaign not found.")
         return HttpResponseRedirect(reverse('portal:home'))
+
+
+@login_required
+@require_POST
+def refresh_zenserp_quota(request):
+    """Refresh the ZenSERP quota by calling the check quota task."""
+    try:
+        from leadtrail.portal.tasks.task_check_zenserp_quota import run
+        result = run()
+        
+        # Get the updated quota
+        quota = ZenSERPQuota.get_current_quota()
+        
+        return JsonResponse({
+            'success': True,
+            'available_credits': quota.available_credits,
+            'message': result
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)

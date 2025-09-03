@@ -167,7 +167,7 @@
                   <div class="flex space-x-4 text-xs text-gray-500">
                     {% with stats=campaign.vat_lookup_stats %}
                       <div class="relative group">
-                        <span class="cursor-help">✓ {{ stats.successful_lookups }} successful</span>
+                        <span class="cursor-help">✓ {{ stats.successful_lookups }} VAT numbers found</span>
                         <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 text-xs text-white bg-gray-900 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-50 w-64">
                           {{ stats.successful_lookups }} out of {{ stats.completed_lookups }} VAT lookups returned valid VAT registration numbers
                           <div class="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
@@ -386,7 +386,7 @@
                 <!-- Content -->
                 <div class="flex-1">
                   <div class="flex items-center gap-2 mb-1">
-                    <h3 class="text-lg font-medium text-gray-900">LinkedIn Discovery</h3>
+                    <h3 class="text-lg font-medium text-gray-900">LinkedIn Profile Discovery</h3>
                     <div class="relative group">
                       <svg class="w-4 h-4 text-blue-500 cursor-help" fill="currentColor" viewBox="0 0 20 20">
                         <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
@@ -397,12 +397,15 @@
                       </div>
                     </div>
                     <div class="relative group">
-                      <button 
-                        onclick="toggleLinkedInLookup({{ campaign.id }})"
-                        id="linkedin-toggle-{{ campaign.id }}"
-                        class="ml-2 px-2 py-1 text-xs rounded {% if campaign.linkedin_lookup_enabled %}bg-green-600 text-white{% else %}bg-gray-400 text-white{% endif %} hover:bg-opacity-80 transition-colors cursor-help">
-                        {% if campaign.linkedin_lookup_enabled %}ON{% else %}OFF{% endif %}
-                      </button>
+                      <form method="post" action="{% url 'portal:toggle_linkedin_lookup' %}" style="display: inline;">
+                        {% csrf_token %}
+                        <input type="hidden" name="campaign_id" value="{{ campaign.id }}">
+                        <button 
+                          type="submit"
+                          class="ml-2 px-2 py-1 text-xs rounded {% if campaign.linkedin_lookup_enabled %}bg-green-600 text-white{% else %}bg-gray-400 text-white{% endif %} hover:bg-opacity-80 transition-colors cursor-help">
+                          {% if campaign.linkedin_lookup_enabled %}ON{% else %}OFF{% endif %}
+                        </button>
+                      </form>
                       <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 text-xs text-white bg-gray-900 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-50 w-64">
                         Toggle LinkedIn discovery on/off for this campaign. When enabled, the system will search for LinkedIn company pages and employee profiles. Only enable onces the website hunting is completed and all the results have been reviewed.
                         <div class="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
@@ -540,59 +543,5 @@ document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape') hideDeleteModal();
 });
 
-// LinkedIn lookup toggle functionality
-function toggleLinkedInLookup(campaignId) {
-  const toggleButton = document.getElementById(`linkedin-toggle-${campaignId}`);
-  const progressText = document.getElementById(`linkedin-progress-${campaignId}`);
-  const progressBar = document.getElementById(`linkedin-progress-bar-${campaignId}`);
-  
-  // Disable button during request
-  toggleButton.disabled = true;
-  toggleButton.textContent = '...';
-  
-  // Get CSRF token
-  const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-  
-  fetch('{% url "portal:toggle_linkedin_lookup" %}', {
-    method: 'POST',
-    credentials: 'same-origin',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'X-CSRFToken': csrfToken
-    },
-    body: `campaign_id=${campaignId}`
-  })
-  .then(response => response.json())
-  .then(data => {
-    if (data.success) {
-      // Update toggle button
-      toggleButton.textContent = data.linkedin_lookup_enabled ? 'ON' : 'OFF';
-      toggleButton.className = `ml-2 px-2 py-1 text-xs rounded ${data.linkedin_lookup_enabled ? 'bg-green-600 text-white' : 'bg-gray-400 text-white'} hover:bg-opacity-80 transition-colors`;
-      
-      // Update progress text
-      if (data.linkedin_lookup_enabled) {
-        progressText.innerHTML = `${data.completed_lookups}/${data.total_companies} processed<br><small class="text-xs text-gray-600">Employee (0%), Company (0%), Overall (0%)</small>`;
-      } else {
-        progressText.textContent = 'Disabled';
-      }
-      
-      // Update progress bar
-      progressBar.style.width = `${data.progress_percentage}%`;
-      
-      // Show success message (optional)
-      console.log(data.message);
-    } else {
-      alert(`Error: ${data.error}`);
-    }
-  })
-  .catch(error => {
-    console.error('Error:', error);
-    alert('An error occurred while toggling LinkedIn lookup.');
-  })
-  .finally(() => {
-    // Re-enable button
-    toggleButton.disabled = false;
-  });
-}
 </script>
 {% endblock content %}
