@@ -41,11 +41,6 @@ class Campaign(models.Model):
         auto_now=True,
         help_text=_("When the campaign was last updated")
     )
-    linkedin_lookup_enabled = models.BooleanField(
-        _("LinkedIn Lookup Enabled"),
-        default=False,
-        help_text=_("Whether LinkedIn lookup is enabled for this campaign")
-    )
 
     class Meta:
         verbose_name = _("Campaign")
@@ -303,10 +298,6 @@ class Campaign(models.Model):
     @property
     def linkedin_lookup_progress(self):
         """Calculate progress percentage of LinkedIn Lookup."""
-        # Only count companies if LinkedIn lookup is enabled for this campaign
-        if not self.linkedin_lookup_enabled:
-            return 0
-        
         total = self.company_numbers.count()
         if total == 0:
             return 0
@@ -317,14 +308,6 @@ class Campaign(models.Model):
     @property
     def linkedin_lookup_stats(self):
         """Get LinkedIn lookup statistics with profile type breakdown for display."""
-        if not self.linkedin_lookup_enabled:
-            return {
-                'total_companies': 0,
-                'completed_lookups': 0,
-                'progress_percentage': 0,
-                'enabled': False
-            }
-        
         total = self.company_numbers.count()
         completed = self.company_numbers.filter(linkedin_lookup__isnull=False).count()
         
@@ -366,7 +349,6 @@ class Campaign(models.Model):
             'total_companies': total,
             'completed_lookups': completed,
             'progress_percentage': self.linkedin_lookup_progress,
-            'enabled': True,
             'profile_breakdown': {
                 'employee_found': {'count': employee_found_count, 'percentage': employee_found_pct},
                 'company_found': {'count': company_found_count, 'percentage': company_found_pct},

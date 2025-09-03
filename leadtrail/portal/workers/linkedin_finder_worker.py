@@ -227,14 +227,13 @@ def run_linkedin_finder():
     logger.info("Starting LinkedIn finder")
     
     try:
-        # Get companies ready for LinkedIn search (enabled campaigns, no LinkedIn lookup done yet)
+        # Get companies ready for LinkedIn search (no LinkedIn lookup done yet)
         companies_to_process = CompanyNumber.objects.filter(
-            campaign__linkedin_lookup_enabled=True,  # Campaign has LinkedIn lookup enabled
             linkedin_lookup__isnull=True  # No LinkedIn lookup done yet
         ).select_related('house_data', 'website_hunting_result', 'campaign').order_by('created_at')[:DEFAULT_BATCH_SIZE]
         
         if not companies_to_process:
-            logger.info("No companies ready for LinkedIn search (no enabled campaigns or all done)")
+            logger.info("No companies ready for LinkedIn search (all done)")
             return "No companies ready for LinkedIn search"
         
         logger.info(f"Processing {len(companies_to_process)} companies for LinkedIn search")

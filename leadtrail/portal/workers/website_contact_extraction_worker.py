@@ -51,7 +51,6 @@ logger = logging.getLogger(__name__)
 
 # Configuration
 DEFAULT_BATCH_SIZE = 3
-SLEEP_BETWEEN_COMPANIES_SECONDS = 5
 RUN_EVERY_SECONDS = 5
 
 # Global flag for graceful shutdown
@@ -202,8 +201,6 @@ def run_website_contact_extraction():
                 
             try:
                 success = _process_contact_extraction(company, contact_extractor)
-                logger.info(f"Sleeping for {SLEEP_BETWEEN_COMPANIES_SECONDS} seconds")
-                time.sleep(SLEEP_BETWEEN_COMPANIES_SECONDS)
                 
                 if success:
                     successful_count += 1
