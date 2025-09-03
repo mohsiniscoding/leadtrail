@@ -359,9 +359,8 @@ class Campaign(models.Model):
     @property
     def linkedin_employee_review_progress(self):
         """Calculate progress percentage of LinkedIn Employee Review."""
-        # Companies eligible for review: have both website contact lookup and linkedin lookup
+        # Companies eligible for review: have linkedin lookup
         eligible_companies = self.company_numbers.filter(
-            website_contact_lookup__isnull=False,
             linkedin_lookup__isnull=False
         ).count()
         

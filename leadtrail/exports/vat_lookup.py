@@ -45,8 +45,13 @@ def generate_vat_lookup_csv(campaign: Campaign) -> HttpResponse:
     writer.writerow(headers)
     
     # Get company numbers for the campaign with related VAT data
+    # Only include companies where VAT is found (has vat_number and not "NOT_FOUND")
     companies = CompanyNumber.objects.filter(
-        campaign=campaign
+        campaign=campaign,
+        vat_lookup__isnull=False,
+        vat_lookup__vat_number__isnull=False
+    ).exclude(
+        vat_lookup__vat_number__in=['', 'NOT_FOUND']
     ).select_related('vat_lookup').order_by('company_number')
     
     # Write data rows

@@ -21,7 +21,6 @@ urlpatterns = [
     path("website-review-action/", views.website_review_action, name="website_review_action"),
     path("export/companies-house/<int:campaign_id>/", views.export_companies_house_csv, name="export_companies_house_csv"),
     path("export/vat-lookup/<int:campaign_id>/", views.export_vat_lookup_csv, name="export_vat_lookup_csv"),
-    path("export/website-hunting/<int:campaign_id>/", views.export_website_hunting_csv, name="export_website_hunting_csv"),
     path("export/contact-extraction/<int:campaign_id>/", views.export_contact_extraction_csv, name="export_contact_extraction_csv"),
     path("export/linkedin-finder/<int:campaign_id>/", views.export_linkedin_finder_csv, name="export_linkedin_finder_csv"),
     path("refresh-zenserp-quota/", views.refresh_zenserp_quota, name="refresh_zenserp_quota"),

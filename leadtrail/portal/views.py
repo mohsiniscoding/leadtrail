@@ -14,7 +14,6 @@ from django.views.decorators.http import require_POST
 from .models import Campaign, CompanyNumber, SERPExcludedDomain, BlacklistDomain, ZenSERPQuota, SearchKeyword, WebsiteHuntingResult, LinkedinEmployeeReview
 from leadtrail.exports.companies_house_lookup import generate_companies_house_csv
 from leadtrail.exports.vat_lookup import generate_vat_lookup_csv
-from leadtrail.exports.website_hunting import generate_website_hunting_csv
 from leadtrail.exports.contact_extraction import generate_contact_extraction_csv
 from leadtrail.exports.linkedin_finder import generate_linkedin_finder_csv
 
@@ -768,15 +767,6 @@ def export_vat_lookup_csv(request, campaign_id):
         return HttpResponseRedirect(reverse('portal:home'))
 
 
-@login_required
-def export_website_hunting_csv(request, campaign_id):
-    """Export Website Hunting data as CSV."""
-    try:
-        campaign = Campaign.objects.get(id=campaign_id)
-        return generate_website_hunting_csv(campaign)
-    except Campaign.DoesNotExist:
-        messages.error(request, "Campaign not found.")
-        return HttpResponseRedirect(reverse('portal:home'))
 
 
 @login_required

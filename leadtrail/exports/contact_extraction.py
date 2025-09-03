@@ -54,17 +54,16 @@ def generate_contact_extraction_csv(campaign: Campaign) -> HttpResponse:
     writer.writerow(headers)
     
     # Get company numbers for the campaign with related contact lookup data
+    # Only include companies that have website_contact_lookup data
     companies = CompanyNumber.objects.filter(
-        campaign=campaign
+        campaign=campaign,
+        website_contact_lookup__isnull=False
     ).select_related('website_contact_lookup').order_by('company_number')
     
     # Write data rows
     for company in companies:
-        # Safely get contact data or None if it doesn't exist
-        try:
-            contact_data = company.website_contact_lookup
-        except CompanyNumber.website_contact_lookup.RelatedObjectDoesNotExist:
-            contact_data = None
+        # Get contact data (guaranteed to exist due to filter)
+        contact_data = company.website_contact_lookup
         
         # Initialize variables
         phone_numbers_str = ''
