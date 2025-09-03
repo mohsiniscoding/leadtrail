@@ -18,8 +18,39 @@
     </a>
   </div>
 
-  <!-- Campaigns List -->
-  <div class="space-y-6">
+  <!-- Credits Section -->
+  <div class="mb-8">
+    <h2 class="text-lg font-semibold text-gray-800 mb-4">Credits</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <!-- ZenSERP Credits Card -->
+      {% if zenserp_quota %}
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-sm font-medium text-gray-700">ZenSERP API</h3>
+            <button onclick="refreshZenSERPQuota()" class="p-1 rounded hover:bg-gray-100 transition-colors" title="Refresh quota">
+              <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+              </svg>
+            </button>
+          </div>
+          <div class="text-2xl font-bold {% if zenserp_quota.available_credits < 100 %}text-red-600{% else %}text-green-600{% endif %} mb-2">
+            {{ zenserp_quota.available_credits }}
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-xs text-gray-500">Available credits</span>
+            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium {% if zenserp_quota.available_credits < 100 %}bg-red-100 text-red-800{% else %}bg-green-100 text-green-800{% endif %}">
+              {% if zenserp_quota.available_credits < 100 %}Low{% else %}Active{% endif %}
+            </span>
+          </div>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Campaigns Section -->
+  <div class="mb-8">
+    <h2 class="text-lg font-semibold text-gray-800 mb-4">Campaigns</h2>
+    <div class="space-y-6">
     {% if campaigns %}
       {% for campaign in campaigns %}
       <!-- Full Width Campaign Card -->
@@ -477,30 +508,7 @@
                   </div>
                   <div id="linkedin-employee-review-progress-{{ campaign.id }}">
                     {% with stats=campaign.linkedin_employee_review_stats %}
-                      <p class="text-sm text-gray-600 mb-2">{{ stats.reviewed_companies }}/{{ stats.eligible_companies }} companies reviewed</p>
-                      <div class="flex space-x-4 text-xs text-gray-500">
-                        <div class="relative group">
-                          <span class="cursor-help">👥 {{ stats.total_approved }} employees approved</span>
-                          <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 text-xs text-white bg-gray-900 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-50 w-64">
-                            {{ stats.total_approved }} LinkedIn employee profiles have been approved out of {{ stats.total_urls_found }} found across all reviewed companies
-                            <div class="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
-                          </div>
-                        </div>
-                        <div class="relative group">
-                          <span class="cursor-help">🎯 {{ stats.approval_rate }}% approval rate</span>
-                          <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 text-xs text-white bg-gray-900 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-50 w-64">
-                            {{ stats.companies_with_approvals }} out of {{ stats.reviewed_companies }} reviewed companies have at least one approved employee profile
-                            <div class="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
-                          </div>
-                        </div>
-                        <div class="relative group">
-                          <span class="cursor-help">📊 {{ stats.total_urls_found }} total found</span>
-                          <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 text-xs text-white bg-gray-900 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-50 w-64">
-                            {{ stats.total_urls_found }} LinkedIn employee profile URLs found across all reviewed companies from both website crawling and LinkedIn discovery
-                            <div class="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
-                          </div>
-                        </div>
-                      </div>
+                      <p class="text-sm text-gray-600 mb-2">{{ campaign.companies_with_approved_employees }}/{{ campaign.linkedin_lookup_stats.completed_lookups }} approved companies</p>
                     {% endwith %}
                   </div>
                 </div>
@@ -541,6 +549,7 @@
         </a>
       </div>
     {% endif %}
+    </div>
   </div>
 </div>
 

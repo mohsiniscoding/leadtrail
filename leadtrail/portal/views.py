@@ -511,9 +511,7 @@ class LinkedinEmployeeReviewView(ListView):
             linkedin_review, created = LinkedinEmployeeReview.objects.get_or_create(
                 company_number=company,
                 defaults={
-                    'approved_employee_urls': [],
-                    'source_breakdown': {},
-                    'review_status': 'PENDING'
+                    'approved_employee_urls': []
                 }
             )
             
@@ -543,22 +541,22 @@ class LinkedinEmployeeReviewView(ListView):
                 
                 approved_urls_with_source.append(url_data)
             
-            # Update the review record
-            linkedin_review.approved_employee_urls = approved_urls_with_source
-            linkedin_review.source_breakdown = source_breakdown
-            linkedin_review.review_status = 'APPROVED' if approved_urls else 'PENDING'
-            linkedin_review.save()
-            
-            # Success message
+            # Handle the review record based on whether URLs are approved
             if approved_urls:
+                # Update the review record with approved URLs
+                linkedin_review.approved_employee_urls = approved_urls_with_source
+                linkedin_review.save()
+                
                 messages.success(
                     request, 
                     f"✓ {len(approved_urls)} LinkedIn profile(s) approved for Company #{company.company_number}"
                 )
             else:
+                # Delete the review record if no URLs are selected
+                linkedin_review.delete()
                 messages.info(
                     request, 
-                    f"No LinkedIn profiles selected for Company #{company.company_number}"
+                    f"No LinkedIn profiles selected for Company #{company.company_number}. Review record removed."
                 )
                 
         except Exception as e:

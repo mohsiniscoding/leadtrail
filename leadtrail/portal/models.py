@@ -390,7 +390,6 @@ class Campaign(models.Model):
         ).count()
         
         # Initialize URL counters
-        total_urls_found = 0
         total_approved = 0
         companies_with_approvals = 0
         
@@ -400,7 +399,6 @@ class Campaign(models.Model):
         ).select_related('linkedin_employee_review'):
             
             employee_review = company.linkedin_employee_review
-            total_urls_found += employee_review.total_urls_found
             total_approved += employee_review.total_approved
             
             if employee_review.has_approved_employees:
@@ -415,12 +413,21 @@ class Campaign(models.Model):
         return {
             'eligible_companies': eligible_companies,
             'reviewed_companies': reviewed_companies,
-            'total_urls_found': total_urls_found,
             'total_approved': total_approved,
             'companies_with_approvals': companies_with_approvals,
             'approval_rate': approval_rate,
             'progress_percentage': self.linkedin_employee_review_progress
         }
+    
+    @property
+    def companies_with_approved_employees(self):
+        """
+        Count companies that have approved employee URLs from any source
+        (either through website contact extraction or LinkedIn discovery).
+        """
+        return self.company_numbers.filter(
+            linkedin_employee_review__isnull=False
+        ).count()
 
 
 class CompanyNumber(models.Model):
@@ -1175,46 +1182,25 @@ class LinkedinEmployeeReview(models.Model):
         default=list,
         help_text=_("List of approved LinkedIn employee profile URLs with metadata")
     )
-    source_breakdown = models.JSONField(
-        _("Source Breakdown"),
-        default=dict,
-        help_text=_("Statistics about URL sources (website vs linkedin discovery)")
-    )
-    review_status = models.CharField(
-        _("Review Status"),
-        max_length=50,
-        default="PENDING",
-        help_text=_("Status of the LinkedIn employee review process")
-    )
     reviewed_at = models.DateTimeField(
         _("Reviewed At"),
-        null=True,
-        blank=True,
+        auto_now_add=True,
         help_text=_("When the review was completed")
-    )
-    total_urls_found = models.PositiveIntegerField(
-        _("Total URLs Found"),
-        default=0,
-        help_text=_("Total number of LinkedIn employee URLs found from both sources")
-    )
-    total_approved = models.PositiveIntegerField(
-        _("Total Approved"),
-        default=0,
-        help_text=_("Total number of employee URLs approved by human review")
-    )
-    created_at = models.DateTimeField(
-        _("Created at"),
-        auto_now_add=True
     )
 
     class Meta:
         verbose_name = _("LinkedIn Employee Review")
         verbose_name_plural = _("LinkedIn Employee Reviews")
-        ordering = ["-created_at"]
+        ordering = ["-reviewed_at"]
 
     def __str__(self) -> str:
         """String representation of the LinkedIn employee review."""
-        return f"Employee review for {self.company_number.company_number} ({self.total_approved}/{self.total_urls_found} approved)"
+        return f"Employee review for {self.company_number.company_number} ({len(self.approved_employee_urls)} approved)"
+
+    @property
+    def total_approved(self) -> int:
+        """Get total number of approved employee URLs."""
+        return len(self.approved_employee_urls)
 
     @property
     def has_approved_employees(self) -> bool:
@@ -1222,13 +1208,6 @@ class LinkedinEmployeeReview(models.Model):
         return self.total_approved > 0
 
     @property
-    def approval_rate(self) -> float:
-        """Get approval rate as percentage."""
-        if self.total_urls_found == 0:
-            return 0.0
-        return (self.total_approved / self.total_urls_found) * 100
-
-    @property
     def is_completed(self) -> bool:
         """Check if the review process is completed."""
-        return self.review_status == "COMPLETED"
+        return True  # If the record exists, it means review was completed
