@@ -867,6 +867,44 @@ class ZenSERPQuota(models.Model):
         return quota
 
 
+class SnovQuota(models.Model):
+    """
+    Tracks the available Snov.io API quota/balance.
+    """
+    available_credits = models.DecimalField(
+        _("Available Credits"),
+        max_digits=12,
+        decimal_places=2,
+        default=0.00,
+        help_text=_("Number of available Snov.io API credits")
+    )
+    last_updated = models.DateTimeField(
+        _("Last Updated"),
+        auto_now=True,
+        help_text=_("When the quota was last updated")
+    )
+
+    class Meta:
+        verbose_name = _("Snov Quota")
+        verbose_name_plural = _("Snov Quota")
+
+    def __str__(self) -> str:
+        """String representation of the Snov quota."""
+        return f"Snov Credits: {self.available_credits}"
+    
+    @classmethod
+    def get_current_quota(cls):
+        """
+        Get the current Snov quota.
+        If no record exists, create one with 0 credits.
+        """
+        quota, created = cls.objects.get_or_create(
+            pk=1,
+            defaults={'available_credits': 0.00}
+        )
+        return quota
+
+
 class SearchKeyword(models.Model):
     """
     Keywords used for SERP searches when looking for company websites.

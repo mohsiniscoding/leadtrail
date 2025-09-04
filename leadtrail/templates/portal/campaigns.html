@@ -44,6 +44,29 @@
           </div>
         </div>
       {% endif %}
+      
+      <!-- Snov API Credits Card -->
+      {% if snov_quota %}
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-sm font-medium text-gray-700">Snov.io API</h3>
+            <button onclick="refreshSnovQuota()" class="p-1 rounded hover:bg-gray-100 transition-colors" title="Refresh quota">
+              <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+              </svg>
+            </button>
+          </div>
+          <div class="text-2xl font-bold {% if snov_quota.available_credits < 100 %}text-red-600{% else %}text-green-600{% endif %} mb-2">
+            {{ snov_quota.available_credits|floatformat:0 }}
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="text-xs text-gray-500">Available credits</span>
+            <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium {% if snov_quota.available_credits < 100 %}bg-red-100 text-red-800{% else %}bg-green-100 text-green-800{% endif %}">
+              {% if snov_quota.available_credits < 100 %}Low{% else %}Active{% endif %}
+            </span>
+          </div>
+        </div>
+      {% endif %}
     </div>
   </div>
 
@@ -501,7 +524,7 @@
                   </div>
                   <div id="linkedin-employee-review-progress-{{ campaign.id }}">
                     {% with stats=campaign.linkedin_employee_review_stats %}
-                      <p class="text-sm text-gray-600 mb-2">{{ campaign.companies_with_approved_employees }}/{{ campaign.linkedin_lookup_stats.completed_lookups }} approved companies</p>
+                      <p class="text-sm text-gray-600 mb-2">{{ campaign.companies_with_approved_employees }} total approved companies</p>
                     {% endwith %}
                   </div>
                 </div>

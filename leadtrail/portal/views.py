@@ -11,7 +11,7 @@ from django.utils import timezone
 from django.views.generic import ListView, TemplateView
 from django.views.decorators.http import require_POST
 
-from .models import Campaign, CompanyNumber, SERPExcludedDomain, BlacklistDomain, ZenSERPQuota, SearchKeyword, WebsiteHuntingResult, LinkedinEmployeeReview
+from .models import Campaign, CompanyNumber, SERPExcludedDomain, BlacklistDomain, ZenSERPQuota, SnovQuota, SearchKeyword, WebsiteHuntingResult, LinkedinEmployeeReview
 from leadtrail.exports.companies_house_lookup import generate_companies_house_csv
 from leadtrail.exports.vat_lookup import generate_vat_lookup_csv
 from leadtrail.exports.contact_extraction import generate_contact_extraction_csv
@@ -32,6 +32,8 @@ class CampaignListView(ListView):
         context = super().get_context_data(**kwargs)
         # Add ZenSERP quota to context
         context['zenserp_quota'] = ZenSERPQuota.get_current_quota()
+        # Add Snov quota to context
+        context['snov_quota'] = SnovQuota.get_current_quota()
         return context
 
 
@@ -794,21 +796,105 @@ def export_linkedin_finder_csv(request, campaign_id):
 @login_required
 @require_POST
 def refresh_zenserp_quota(request):
-    """Refresh the ZenSERP quota by calling the check quota task."""
+    """Refresh the ZenSERP quota by checking the ZenSERP API directly."""
+    import logging
+    from leadtrail.portal.modules.website_hunter_api import WebsiteHunterClient
+    
+    logger = logging.getLogger(__name__)
+    
     try:
-        from leadtrail.portal.tasks.task_check_zenserp_quota import run
-        result = run()
+        logger.info("Checking ZenSERP API quota...")
         
-        # Get the updated quota
+        # Create WebsiteHunterClient instance (it will load API key from .env)
+        client = WebsiteHunterClient()
+        
+        # Check API quota
+        quota_data = client.check_api_quota()
+        
+        if not quota_data:
+            logger.error("Failed to retrieve ZenSERP API quota")
+            return JsonResponse({
+                'success': False,
+                'error': "Failed to retrieve ZenSERP API quota"
+            }, status=500)
+        
+        # Extract available credits
+        available_credits = quota_data.get('remaining_requests', 0)
+        
+        # Update or create quota record
         quota = ZenSERPQuota.get_current_quota()
+        quota.available_credits = available_credits
+        quota.save()
+        
+        logger.info(f"ZenSERP API quota updated: {available_credits} credits available")
+        result_message = f"ZenSERP API quota updated: {available_credits} credits available"
         
         return JsonResponse({
             'success': True,
             'available_credits': quota.available_credits,
-            'message': result
+            'message': result_message
         })
+        
     except Exception as e:
+        logger.error(f"Error checking ZenSERP API quota: {str(e)}")
         return JsonResponse({
             'success': False,
-            'error': str(e)
+            'error': f"Error checking ZenSERP API quota: {str(e)}"
+        }, status=500)
+
+
+@login_required
+@require_POST
+def refresh_snov_quota(request):
+    """Refresh the Snov quota by checking the Snov API directly."""
+    import logging
+    from leadtrail.portal.utils.snov_client import SnovClient
+    
+    logger = logging.getLogger(__name__)
+    
+    try:
+        logger.info("Checking Snov API balance...")
+        
+        # Create Snov client instance (it will load API key from .env)
+        client = SnovClient()
+        
+        # Check API balance
+        balance_data = client.check_api_quota()
+        
+        if not balance_data:
+            logger.error("Failed to retrieve Snov API balance")
+            return JsonResponse({
+                'success': False,
+                'error': "Failed to retrieve Snov API balance"
+            }, status=500)
+        
+        # Extract available credits (balance is returned as string like "25000.00")
+        available_credits = balance_data.get('balance', '0.00')
+        
+        try:
+            from decimal import Decimal
+            available_credits_decimal = Decimal(str(available_credits))
+        except (TypeError, ValueError):
+            logger.warning(f"Could not convert balance to Decimal: {available_credits}")
+            available_credits_decimal = Decimal('0.00')
+        
+        # Update or create quota record
+        quota = SnovQuota.get_current_quota()
+        quota.available_credits = available_credits_decimal
+        quota.save()
+        
+        logger.info(f"Snov API balance updated: {available_credits} credits available")
+        result_message = f"Snov API balance updated: {available_credits} credits available"
+        
+        return JsonResponse({
+            'success': True,
+            'available_credits': str(quota.available_credits),
+            'message': result_message
+        })
+        
+    except Exception as e:
+        logger.error(f"Error checking Snov API balance: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': f"Error checking Snov API balance: {str(e)}"
         }, status=500)
