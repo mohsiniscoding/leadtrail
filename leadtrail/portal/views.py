@@ -381,6 +381,12 @@ class LinkedinEmployeeReviewView(ListView):
             'website_contact_lookup', 'linkedin_lookup', 'linkedin_employee_review'
         )
         
+        # Apply show_unapproved filter if requested
+        show_unapproved_filter = self.request.GET.get('show_unapproved')
+        if show_unapproved_filter == 'true':
+            # Only show companies that don't have LinkedinEmployeeReview records yet
+            queryset = queryset.filter(linkedin_employee_review__isnull=True)
+        
         # Apply non-zero filter if requested
         non_zero_filter = self.request.GET.get('non_zero_employees')
         if non_zero_filter == 'true':
@@ -406,6 +412,7 @@ class LinkedinEmployeeReviewView(ListView):
         
         context['campaign'] = campaign
         context['non_zero_filter'] = self.request.GET.get('non_zero_employees', 'false')
+        context['show_unapproved_filter'] = self.request.GET.get('show_unapproved', 'false')
         
         # Process LinkedIn employee URLs for each company
         processed_companies = []
@@ -571,9 +578,10 @@ class LinkedinEmployeeReviewView(ListView):
         campaign_id = self.kwargs.get('campaign_id')
         page = request.GET.get('page', 1)
         non_zero_employees = request.GET.get('non_zero_employees', 'false')
+        show_unapproved = request.GET.get('show_unapproved', 'false')
         
         redirect_url = reverse('portal:linkedin_employee_review', kwargs={'campaign_id': campaign_id})
-        params = f"?page={page}&non_zero_employees={non_zero_employees}"
+        params = f"?page={page}&non_zero_employees={non_zero_employees}&show_unapproved={show_unapproved}"
         
         return HttpResponseRedirect(f"{redirect_url}{params}")
 

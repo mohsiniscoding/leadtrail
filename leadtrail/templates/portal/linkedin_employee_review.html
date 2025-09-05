@@ -40,6 +40,18 @@
                     Show only companies with LinkedIn employees
                 </label>
             </div>
+            <div class="flex items-center">
+                <input type="checkbox" 
+                       id="showUnapproved" 
+                       name="show_unapproved" 
+                       value="true" 
+                       {% if show_unapproved_filter == 'true' %}checked{% endif %}
+                       class="h-4 w-4 text-teal-600 focus:ring-teal-500 border-gray-300 rounded"
+                       onchange="toggleFilter('show_unapproved', this.checked)">
+                <label for="showUnapproved" class="ml-2 text-sm text-gray-700 cursor-pointer">
+                    Only show unapproved results
+                </label>
+            </div>
         </div>
     </div>
 
@@ -68,6 +80,7 @@
                     <!-- Preserve pagination state -->
                     <input type="hidden" name="page" value="{{ request.GET.page|default:1 }}">
                     <input type="hidden" name="non_zero_employees" value="{{ request.GET.non_zero_employees|default:'false' }}">
+                    <input type="hidden" name="show_unapproved" value="{{ request.GET.show_unapproved|default:'false' }}">
                     
                     <div class="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
                     <!-- Company Header -->
@@ -218,11 +231,11 @@
             <div class="mt-8 flex items-center justify-center">
                 <nav class="flex items-center space-x-2">
                     {% if page_obj.has_previous %}
-                        <a href="?page=1{% if non_zero_filter == 'true' %}&non_zero_employees=true{% endif %}" 
+                        <a href="?page=1{% if non_zero_filter == 'true' %}&non_zero_employees=true{% endif %}{% if show_unapproved_filter == 'true' %}&show_unapproved=true{% endif %}" 
                            class="px-3 py-2 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md">
                             First
                         </a>
-                        <a href="?page={{ page_obj.previous_page_number }}{% if non_zero_filter == 'true' %}&non_zero_employees=true{% endif %}" 
+                        <a href="?page={{ page_obj.previous_page_number }}{% if non_zero_filter == 'true' %}&non_zero_employees=true{% endif %}{% if show_unapproved_filter == 'true' %}&show_unapproved=true{% endif %}" 
                            class="px-3 py-2 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md">
                             Previous
                         </a>
@@ -233,11 +246,11 @@
                     </span>
                     
                     {% if page_obj.has_next %}
-                        <a href="?page={{ page_obj.next_page_number }}{% if non_zero_filter == 'true' %}&non_zero_employees=true{% endif %}" 
+                        <a href="?page={{ page_obj.next_page_number }}{% if non_zero_filter == 'true' %}&non_zero_employees=true{% endif %}{% if show_unapproved_filter == 'true' %}&show_unapproved=true{% endif %}" 
                            class="px-3 py-2 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md">
                             Next
                         </a>
-                        <a href="?page={{ page_obj.paginator.num_pages }}{% if non_zero_filter == 'true' %}&non_zero_employees=true{% endif %}" 
+                        <a href="?page={{ page_obj.paginator.num_pages }}{% if non_zero_filter == 'true' %}&non_zero_employees=true{% endif %}{% if show_unapproved_filter == 'true' %}&show_unapproved=true{% endif %}" 
                            class="px-3 py-2 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md">
                             Last
                         </a>
