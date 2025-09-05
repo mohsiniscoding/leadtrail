@@ -11,7 +11,7 @@ from django.utils import timezone
 from django.views.generic import ListView, TemplateView
 from django.views.decorators.http import require_POST
 
-from .models import Campaign, CompanyNumber, SERPExcludedDomain, BlacklistDomain, ZenSERPQuota, SnovQuota, SearchKeyword, WebsiteHuntingResult, LinkedinEmployeeReview
+from .models import Campaign, CompanyNumber, SERPExcludedDomain, BlacklistDomain, ZenSERPQuota, SnovQuota, HunterQuota, SearchKeyword, WebsiteHuntingResult, LinkedinEmployeeReview
 from leadtrail.exports.companies_house_lookup import generate_companies_house_csv
 from leadtrail.exports.vat_lookup import generate_vat_lookup_csv
 from leadtrail.exports.contact_extraction import generate_contact_extraction_csv
@@ -35,6 +35,8 @@ class CampaignListView(ListView):
         context['zenserp_quota'] = ZenSERPQuota.get_current_quota()
         # Add Snov quota to context
         context['snov_quota'] = SnovQuota.get_current_quota()
+        # Add Hunter quota to context
+        context['hunter_quota'] = HunterQuota.get_current_quota()
         return context
 
 
@@ -917,4 +919,61 @@ def refresh_snov_quota(request):
         return JsonResponse({
             'success': False,
             'error': f"Error checking Snov API balance: {str(e)}"
+        }, status=500)
+
+
+@login_required
+@require_POST
+def refresh_hunter_quota(request):
+    """Refresh the Hunter quota by checking the Hunter.io API directly."""
+    import logging
+    from leadtrail.portal.utils.hunter_client import HunterClient
+    
+    logger = logging.getLogger(__name__)
+    
+    try:
+        logger.info("Checking Hunter.io API balance...")
+        
+        # Create Hunter client instance (it will load API key from .env)
+        client = HunterClient()
+        
+        # Check API balance
+        balance_data = client.check_api_quota()
+        
+        if not balance_data:
+            logger.error("Failed to retrieve Hunter.io API balance")
+            return JsonResponse({
+                'success': False,
+                'error': "Failed to retrieve Hunter.io API balance"
+            }, status=500)
+        
+        # Extract available credits (already calculated as available - used)
+        available_credits = balance_data.get('available_credits', 0.0)
+        
+        try:
+            from decimal import Decimal
+            available_credits_decimal = Decimal(str(available_credits))
+        except (TypeError, ValueError):
+            logger.warning(f"Could not convert balance to Decimal: {available_credits}")
+            available_credits_decimal = Decimal('0.00')
+        
+        # Update or create quota record
+        quota = HunterQuota.get_current_quota()
+        quota.available_credits = available_credits_decimal
+        quota.save()
+        
+        logger.info(f"Hunter.io API balance updated: {available_credits} credits available")
+        result_message = f"Hunter.io API balance updated: {available_credits} credits available"
+        
+        return JsonResponse({
+            'success': True,
+            'available_credits': str(quota.available_credits),
+            'message': result_message
+        })
+        
+    except Exception as e:
+        logger.error(f"Error checking Hunter.io API balance: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': f"Error checking Hunter.io API balance: {str(e)}"
         }, status=500)
