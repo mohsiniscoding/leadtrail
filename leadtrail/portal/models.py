@@ -428,6 +428,94 @@ class Campaign(models.Model):
             linkedin_employee_review__isnull=False
         ).count()
 
+    @property
+    def snov_lookup_progress(self):
+        """Calculate progress percentage of Snov.io Email Extraction."""
+        # Companies eligible for Snov lookup: have approved LinkedIn employee profiles
+        eligible_companies = self.company_numbers.filter(
+            linkedin_employee_review__isnull=False
+        )
+        
+        # Filter companies that have approved employee URLs (done in Python since JSONField filtering can be tricky)
+        eligible_count = 0
+        for company in eligible_companies:
+            if company.linkedin_employee_review.approved_employee_urls:
+                eligible_count += 1
+        
+        if eligible_count == 0:
+            return 0
+        
+        # Companies that have had Snov lookup completed
+        completed_companies = self.company_numbers.filter(
+            snov_lookup__isnull=False
+        ).count()
+        
+        return round((completed_companies / eligible_count) * 100)
+
+    @property
+    def snov_lookup_stats(self):
+        """Get Snov.io lookup statistics with breakdown for display."""
+        # Companies eligible for Snov lookup: have approved LinkedIn employee profiles
+        eligible_companies = self.company_numbers.filter(
+            linkedin_employee_review__isnull=False
+        )
+        
+        # Filter companies that have approved employee URLs (done in Python since JSONField filtering can be tricky)
+        total_eligible = 0
+        for company in eligible_companies:
+            if company.linkedin_employee_review.approved_employee_urls:
+                total_eligible += 1
+        
+        # Companies with completed Snov lookups
+        completed_lookups = self.company_numbers.filter(
+            snov_lookup__isnull=False
+        ).select_related('snov_lookup')
+        
+        # Calculate statistics
+        total_completed = completed_lookups.count()
+        
+        # Email extraction statistics
+        successful_extractions = 0
+        total_emails_found = 0
+        total_profiles_processed = 0
+        
+        for company in completed_lookups:
+            snov_lookup = company.snov_lookup
+            if snov_lookup.has_emails:
+                successful_extractions += 1
+            total_emails_found += snov_lookup.total_emails_found
+            total_profiles_processed += snov_lookup.profiles_processed_count
+        
+        # Calculate percentages
+        success_rate = round((successful_extractions / total_completed * 100)) if total_completed > 0 else 0
+        
+        # Email breakdown
+        emails_found_count = sum(1 for company in completed_lookups if company.snov_lookup.has_emails)
+        emails_found_percentage = round((emails_found_count / total_completed * 100)) if total_completed > 0 else 0
+        
+        # Processing status breakdown
+        success_count = sum(1 for company in completed_lookups if company.snov_lookup.is_success)
+        success_percentage = round((success_count / total_completed * 100)) if total_completed > 0 else 0
+        
+        return {
+            'total_eligible': total_eligible,
+            'completed_lookups': total_completed,
+            'success_rate': success_rate,
+            'total_emails_found': total_emails_found,
+            'total_profiles_processed': total_profiles_processed,
+            'progress_percentage': self.snov_lookup_progress,
+            'email_breakdown': {
+                'emails_found': {
+                    'count': emails_found_count,
+                    'percentage': emails_found_percentage
+                },
+                'success_status': {
+                    'count': success_count,
+                    'percentage': success_percentage
+                }
+            }
+        }
+
 
 class CompanyNumber(models.Model):
     """
@@ -1248,3 +1336,83 @@ class LinkedinEmployeeReview(models.Model):
     def is_completed(self) -> bool:
         """Check if the review process is completed."""
         return True  # If the record exists, it means review was completed
+
+
+class SnovLookup(models.Model):
+    """
+    Snov.io email extraction lookup results.
+    Stores email information extracted from approved LinkedIn employee profiles.
+    """
+    company_number = models.OneToOneField(
+        CompanyNumber,
+        on_delete=models.CASCADE,
+        related_name="snov_lookup",
+        help_text=_("The company number this Snov lookup belongs to")
+    )
+    linkedin_profiles_processed = models.JSONField(
+        _("LinkedIn Profiles Processed"),
+        default=list,
+        help_text=_("List of LinkedIn profile URLs that were processed through Snov.io")
+    )
+    emails_found = models.JSONField(
+        _("Emails Found"),
+        default=list,
+        help_text=_("List of email addresses found with their status and associated profiles")
+    )
+    processing_status = models.CharField(
+        _("Processing Status"),
+        max_length=50,
+        choices=[
+            ('SUCCESS', _('Success')),
+            ('PARTIAL_SUCCESS', _('Partial Success')),
+            ('NO_EMAILS_FOUND', _('No Emails Found')),
+            ('API_ERROR', _('API Error')),
+            ('PROCESSING_ERROR', _('Processing Error')),
+        ],
+        default='SUCCESS',
+        help_text=_("Overall status of the Snov.io processing")
+    )
+    processing_notes = models.TextField(
+        _("Processing Notes"),
+        blank=True,
+        help_text=_("Additional notes about the processing, including any errors or warnings")
+    )
+    profiles_processed_count = models.PositiveIntegerField(
+        _("Profiles Processed Count"),
+        default=0,
+        help_text=_("Number of LinkedIn profiles successfully processed")
+    )
+    total_emails_found = models.PositiveIntegerField(
+        _("Total Emails Found"),
+        default=0,
+        help_text=_("Total number of email addresses found across all profiles")
+    )
+    processed_at = models.DateTimeField(
+        _("Processed At"),
+        auto_now_add=True,
+        help_text=_("When the Snov.io processing was completed")
+    )
+    updated_at = models.DateTimeField(
+        _("Updated At"),
+        auto_now=True,
+        help_text=_("When the record was last updated")
+    )
+
+    class Meta:
+        verbose_name = _("Snov Lookup")
+        verbose_name_plural = _("Snov Lookups")
+        ordering = ["-processed_at"]
+
+    def __str__(self) -> str:
+        """String representation of the Snov lookup."""
+        return f"Snov lookup for {self.company_number.company_number} ({self.total_emails_found} emails found)"
+
+    @property
+    def has_emails(self) -> bool:
+        """Check if any emails were found."""
+        return self.total_emails_found > 0
+
+    @property
+    def is_success(self) -> bool:
+        """Check if the Snov processing was successful."""
+        return self.processing_status in ['SUCCESS', 'PARTIAL_SUCCESS']

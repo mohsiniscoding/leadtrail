@@ -16,6 +16,7 @@ from leadtrail.exports.companies_house_lookup import generate_companies_house_cs
 from leadtrail.exports.vat_lookup import generate_vat_lookup_csv
 from leadtrail.exports.contact_extraction import generate_contact_extraction_csv
 from leadtrail.exports.linkedin_finder import generate_linkedin_finder_csv
+from leadtrail.exports.snov_lookup import generate_snov_lookup_csv
 
 
 @method_decorator(login_required, name='dispatch')
@@ -788,6 +789,17 @@ def export_linkedin_finder_csv(request, campaign_id):
     try:
         campaign = Campaign.objects.get(id=campaign_id)
         return generate_linkedin_finder_csv(campaign)
+    except Campaign.DoesNotExist:
+        messages.error(request, "Campaign not found.")
+        return HttpResponseRedirect(reverse('portal:home'))
+
+
+@login_required
+def export_snov_lookup_csv(request, campaign_id):
+    """Export Snov.io lookup data as CSV."""
+    try:
+        campaign = Campaign.objects.get(id=campaign_id)
+        return generate_snov_lookup_csv(campaign)
     except Campaign.DoesNotExist:
         messages.error(request, "Campaign not found.")
         return HttpResponseRedirect(reverse('portal:home'))
