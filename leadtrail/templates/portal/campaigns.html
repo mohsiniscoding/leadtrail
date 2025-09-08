@@ -643,6 +643,85 @@
               </a>
             </div>
           </div>
+
+          <!-- Step 8: Hunter.io Domain Search -->
+          <div class="bg-gray-50 rounded-lg p-6 border-l-4 border-amber-500">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-4">
+                <!-- Step Number -->
+                <div class="flex items-center justify-center w-8 h-8 bg-amber-500 text-white text-sm font-bold rounded-full">
+                  8
+                </div>
+                
+                <!-- Circular Progress -->
+                <div class="relative w-16 h-16">
+                  <svg class="w-16 h-16 transform -rotate-90" viewBox="0 0 32 32">
+                    <circle cx="16" cy="16" r="14" stroke="#e5e7eb" stroke-width="2" fill="none"/>
+                    <circle cx="16" cy="16" r="14" stroke="#10b981" stroke-width="2" fill="none"
+                            stroke-dasharray="{{campaign.hunter_lookup_progress}} 100"
+                            stroke-linecap="round"/>
+                  </svg>
+                  <div class="absolute inset-0 flex items-center justify-center">
+                    <span class="text-sm font-semibold text-gray-700">{{campaign.hunter_lookup_progress}}%</span>
+                  </div>
+                </div>
+                
+                <!-- Content -->
+                <div class="flex-1">
+                  <div class="flex items-center gap-2 mb-1">
+                    <h3 class="text-lg font-medium text-gray-900">Hunter.io Domain Search</h3>
+                    <div class="relative group">
+                      <svg class="w-4 h-4 text-blue-500 cursor-help" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                      </svg>
+                      <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 text-xs text-white bg-gray-900 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-50 w-64">
+                        Extract professional email addresses from approved company domains using Hunter.io's powerful domain search API.
+                        <div class="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                      </div>
+                    </div>
+                  </div>
+                  <p class="text-sm text-gray-600 mb-2">
+                    {% with stats=campaign.hunter_lookup_stats %}
+                      {{ stats.completed_lookups }}/{{ stats.approved_domains }} approved domains processed • {{ stats.total_emails_found }} emails found
+                    {% endwith %}
+                  </p>
+                  <div class="flex space-x-4 text-xs text-gray-500">
+                    {% with stats=campaign.hunter_lookup_stats %}
+                      <div class="relative group">
+                        <span class="cursor-help">📧 {{ stats.email_breakdown.emails_found.percentage }}% with emails</span>
+                        <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 text-xs text-white bg-gray-900 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-50 w-64">
+                          {{ stats.email_breakdown.emails_found.count }} out of {{ stats.completed_lookups }} processed domains have at least one email address found through Hunter.io
+                          <div class="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                        </div>
+                      </div>
+                      <div class="relative group">
+                        <span class="cursor-help">✅ {{ stats.email_breakdown.success_status.percentage }}% success rate</span>
+                        <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 text-xs text-white bg-gray-900 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-50 w-64">
+                          {{ stats.email_breakdown.success_status.count }} out of {{ stats.completed_lookups }} processed domains had successful Hunter.io API processing
+                          <div class="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                        </div>
+                      </div>
+                      <div class="relative group">
+                        <span class="cursor-help">🏢 {{ stats.approved_domains }} domains approved</span>
+                        <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 text-xs text-white bg-gray-900 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none z-50 w-64">
+                          Total number of domains that have been approved through the Website Hunting review process and are eligible for Hunter.io search
+                          <div class="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                        </div>
+                      </div>
+                    {% endwith %}
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Export Button -->
+              <a href="{% url 'portal:export_hunter_lookup_csv' campaign.id %}" class="inline-flex items-center px-3 py-1 bg-white border border-gray-300 text-gray-700 text-xs rounded hover:bg-gray-50 transition-colors">
+                <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+                Export
+              </a>
+            </div>
+          </div>
         </div>
       </div>
       {% endfor %}

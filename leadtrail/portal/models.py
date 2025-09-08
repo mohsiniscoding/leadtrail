@@ -516,6 +516,81 @@ class Campaign(models.Model):
             }
         }
 
+    @property
+    def hunter_lookup_progress(self):
+        """Calculate progress percentage of Hunter.io Domain Search."""
+        # Companies eligible for Hunter lookup: have approved domains
+        approved_domains_count = self.company_numbers.filter(
+            website_hunting_result__approved_domain__isnull=False,
+            website_hunting_result__approved_by_human=True
+        ).count()
+        
+        if approved_domains_count == 0:
+            return 0
+        
+        # Companies that have had Hunter lookup completed
+        completed_companies = self.company_numbers.filter(
+            hunter_lookup__isnull=False
+        ).count()
+        
+        return round((completed_companies / approved_domains_count) * 100)
+
+    @property
+    def hunter_lookup_stats(self):
+        """Get Hunter.io lookup statistics with breakdown for display."""
+        # Companies with approved domains (eligible for Hunter lookup)
+        approved_domains_count = self.company_numbers.filter(
+            website_hunting_result__approved_domain__isnull=False,
+            website_hunting_result__approved_by_human=True
+        ).count()
+        
+        # Companies with completed Hunter lookups
+        completed_lookups = self.company_numbers.filter(
+            hunter_lookup__isnull=False
+        ).select_related('hunter_lookup')
+        
+        # Calculate statistics
+        total_completed = completed_lookups.count()
+        
+        # Email extraction statistics
+        successful_extractions = 0
+        total_emails_found = 0
+        
+        for company in completed_lookups:
+            hunter_lookup = company.hunter_lookup
+            if hunter_lookup.has_emails:
+                successful_extractions += 1
+            total_emails_found += hunter_lookup.total_emails_found
+        
+        # Calculate percentages
+        success_rate = round((successful_extractions / total_completed * 100)) if total_completed > 0 else 0
+        
+        # Email breakdown
+        emails_found_count = sum(1 for company in completed_lookups if company.hunter_lookup.has_emails)
+        emails_found_percentage = round((emails_found_count / total_completed * 100)) if total_completed > 0 else 0
+        
+        # Processing status breakdown
+        success_count = sum(1 for company in completed_lookups if company.hunter_lookup.is_success)
+        success_percentage = round((success_count / total_completed * 100)) if total_completed > 0 else 0
+        
+        return {
+            'approved_domains': approved_domains_count,
+            'completed_lookups': total_completed,
+            'success_rate': success_rate,
+            'total_emails_found': total_emails_found,
+            'progress_percentage': self.hunter_lookup_progress,
+            'email_breakdown': {
+                'emails_found': {
+                    'count': emails_found_count,
+                    'percentage': emails_found_percentage
+                },
+                'success_status': {
+                    'count': success_count,
+                    'percentage': success_percentage
+                }
+            }
+        }
+
 
 class CompanyNumber(models.Model):
     """
@@ -1454,3 +1529,77 @@ class SnovLookup(models.Model):
     def is_success(self) -> bool:
         """Check if the Snov processing was successful."""
         return self.processing_status in ['SUCCESS', 'PARTIAL_SUCCESS']
+
+
+class HunterLookup(models.Model):
+    """
+    Hunter.io domain search lookup results.
+    Stores email information extracted from approved domains using Hunter.io API.
+    """
+    company_number = models.OneToOneField(
+        CompanyNumber,
+        on_delete=models.CASCADE,
+        related_name="hunter_lookup",
+        help_text=_("The company number this Hunter lookup belongs to")
+    )
+    domain_searched = models.CharField(
+        _("Domain Searched"),
+        max_length=255,
+        help_text=_("The approved domain that was searched")
+    )
+    emails_found = models.JSONField(
+        _("Emails Found"),
+        default=list,
+        help_text=_("List of email addresses found with their details")
+    )
+    processing_status = models.CharField(
+        _("Processing Status"),
+        max_length=50,
+        choices=[
+            ('SUCCESS', _('Success')),
+            ('NO_EMAILS_FOUND', _('No Emails Found')),
+            ('API_ERROR', _('API Error')),
+            ('PROCESSING_ERROR', _('Processing Error')),
+        ],
+        default='SUCCESS',
+        help_text=_("Overall status of the Hunter.io processing")
+    )
+    processing_notes = models.TextField(
+        _("Processing Notes"),
+        blank=True,
+        help_text=_("Additional notes about the processing, including any errors or warnings")
+    )
+    total_emails_found = models.PositiveIntegerField(
+        _("Total Emails Found"),
+        default=0,
+        help_text=_("Total number of email addresses found for this domain")
+    )
+    processed_at = models.DateTimeField(
+        _("Processed At"),
+        auto_now_add=True,
+        help_text=_("When the Hunter.io processing was completed")
+    )
+    updated_at = models.DateTimeField(
+        _("Updated At"),
+        auto_now=True,
+        help_text=_("When the record was last updated")
+    )
+
+    class Meta:
+        verbose_name = _("Hunter Lookup")
+        verbose_name_plural = _("Hunter Lookups")
+        ordering = ["-processed_at"]
+
+    def __str__(self) -> str:
+        """String representation of the Hunter lookup."""
+        return f"Hunter lookup for {self.company_number.company_number} - {self.domain_searched} ({self.total_emails_found} emails found)"
+
+    @property
+    def has_emails(self) -> bool:
+        """Check if any emails were found."""
+        return self.total_emails_found > 0
+
+    @property
+    def is_success(self) -> bool:
+        """Check if the Hunter processing was successful."""
+        return self.processing_status == 'SUCCESS'

@@ -168,3 +168,99 @@ class HunterClient:
         except Exception as e:
             logger.error(f"Failed to check Hunter API quota: {e}")
             return None
+
+    def domain_search(self, domain: str) -> Dict:
+        """
+        Search for email addresses on a domain using Hunter.io domain search API.
+        
+        Args:
+            domain: The domain to search for emails (e.g., 'stripe.com')
+        
+        Returns:
+            Dict: Simple result with emails and status
+            {
+                "emails": [
+                    {
+                        "email": "john@example.com",
+                        "first_name": "John",
+                        "last_name": "Doe",
+                        "position": "Software Engineer",
+                        "confidence": 95
+                    }
+                ],
+                "status": "SUCCESS" | "NO_EMAILS_FOUND" | "API_ERROR"
+            }
+        
+        Raises:
+            HunterAuthenticationError: If authentication fails
+            HunterAPIError: If API returns an error
+        """
+        try:
+            # Make request with API key parameter
+            params = {
+                'domain': domain,
+                'api_key': self.api_key
+            }
+            
+            response = requests.get(f'{self.BASE_URL}/domain-search', params=params)
+            response.raise_for_status()
+            
+            # Parse JSON response
+            data = response.json()
+            
+            # Check for API errors
+            if 'errors' in data:
+                error_msg = data.get('errors', [{}])[0].get('details', 'Unknown API error')
+                logger.error(f"Hunter API returned error for domain {domain}: {error_msg}")
+                return {
+                    "emails": [],
+                    "status": "API_ERROR"
+                }
+            
+            # Extract emails from response
+            emails_found = []
+            domain_data = data.get('data', {})
+            raw_emails = domain_data.get('emails', [])
+            
+            for email_data in raw_emails:
+                if isinstance(email_data, dict) and email_data.get('value'):
+                    email_obj = {
+                        "email": email_data.get('value', ''),
+                        "first_name": email_data.get('first_name', ''),
+                        "last_name": email_data.get('last_name', ''),
+                        "position": email_data.get('position', ''),
+                        "confidence": email_data.get('confidence', 0)
+                    }
+                    emails_found.append(email_obj)
+            
+            # Determine status
+            if emails_found:
+                status = "SUCCESS"
+                logger.info(f"Successfully found {len(emails_found)} emails for domain {domain}")
+            else:
+                status = "NO_EMAILS_FOUND"
+                logger.info(f"No emails found for domain {domain}")
+            
+            return {
+                "emails": emails_found,
+                "status": status
+            }
+            
+        except requests.RequestException as e:
+            logger.error(f"Hunter API request failed for domain {domain}: {e}")
+            return {
+                "emails": [],
+                "status": "API_ERROR"
+            }
+        except (json.JSONDecodeError, KeyError) as e:
+            logger.error(f"Failed to parse Hunter API response for domain {domain}: {e}")
+            return {
+                "emails": [],
+                "status": "API_ERROR"
+            }
+        except Exception as e:
+            logger.error(f"Unexpected error during Hunter domain search for {domain}: {e}")
+            return {
+                "emails": [],
+                "status": "API_ERROR"
+            }

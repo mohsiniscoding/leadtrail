@@ -360,7 +360,7 @@
               creditDisplay.textContent = Math.floor(credits).toLocaleString();
               // Update color based on new credits
               creditDisplay.className = creditDisplay.className.replace(/text-(red|green)-600/, 
-                credits < 100 ? 'text-red-600' : 'text-green-600');
+                credits < 10 ? 'text-red-600' : 'text-green-600');
             }
             
             // Update status badge
@@ -368,8 +368,8 @@
             if (statusBadge) {
               const credits = parseFloat(data.available_credits);
               statusBadge.className = statusBadge.className.replace(/bg-(red|green)-100 text-(red|green)-800/, 
-                credits < 100 ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800');
-              statusBadge.textContent = credits < 100 ? 'Low' : 'Active';
+                credits < 10 ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800');
+              statusBadge.textContent = credits < 10 ? 'Low' : 'Active';
             }
             
             // Show success message briefly
