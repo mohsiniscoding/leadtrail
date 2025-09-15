@@ -42,6 +42,7 @@ class HunterClient:
     def __init__(self):
         """Initialize the Hunter client with API credentials."""
         self.api_key = os.getenv('HUNTER_API_KEY')
+        logger.info(f"Hunter API key: {self.api_key[:5]}...")
         
         if not self.api_key:
             raise HunterAuthenticationError(
