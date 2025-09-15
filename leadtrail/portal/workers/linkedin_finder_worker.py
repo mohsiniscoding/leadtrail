@@ -230,8 +230,8 @@ def run_linkedin_finder():
         # Get companies ready for LinkedIn search (no LinkedIn lookup done yet)
         # It must have company house data 
         companies_to_process = CompanyNumber.objects.filter(
-            linkedin_lookup__isnull=True,  # No LinkedIn lookup done yet
-            house_data__isnull=False    # It must have company house data
+            house_data__isnull=False,    # It must have company house data
+            linkedin_lookup__isnull=True  # No LinkedIn lookup done yet
         ).select_related('house_data', 'website_hunting_result', 'campaign').order_by('created_at')[:DEFAULT_BATCH_SIZE]
         
         if not companies_to_process:
