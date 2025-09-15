@@ -32,13 +32,66 @@ class CampaignListView(ListView):
     paginate_by = 20
     
     def get_context_data(self, **kwargs):
+        from datetime import timedelta
+
         context = super().get_context_data(**kwargs)
+
+        # Check if quotas need refreshing (older than 2 minutes)
+        now = timezone.now()
+        refresh_threshold = timedelta(minutes=2)
+
         # Add ZenSERP quota to context
-        context['zenserp_quota'] = ZenSERPQuota.get_current_quota()
+        zenserp_quota = ZenSERPQuota.get_current_quota()
+        if now - zenserp_quota.last_updated > refresh_threshold:
+            try:
+                from leadtrail.portal.modules.website_hunter_api import WebsiteHunterClient
+                client = WebsiteHunterClient()
+                quota_data = client.check_api_quota()
+                if quota_data:
+                    zenserp_quota.available_credits = quota_data.get('remaining_requests', 0)
+                    zenserp_quota.save()
+            except Exception:
+                pass  # Use existing quota data if refresh fails
+        context['zenserp_quota'] = zenserp_quota
+
         # Add Snov quota to context
-        context['snov_quota'] = SnovQuota.get_current_quota()
+        snov_quota = SnovQuota.get_current_quota()
+        if now - snov_quota.last_updated > refresh_threshold:
+            try:
+                from leadtrail.portal.utils.snov_client import SnovClient
+                from decimal import Decimal
+                client = SnovClient()
+                balance_data = client.check_api_quota()
+                if balance_data:
+                    available_credits = balance_data.get('balance', '0.00')
+                    try:
+                        snov_quota.available_credits = Decimal(str(available_credits))
+                        snov_quota.save()
+                    except (TypeError, ValueError):
+                        pass
+            except Exception:
+                pass  # Use existing quota data if refresh fails
+        context['snov_quota'] = snov_quota
+
         # Add Hunter quota to context
-        context['hunter_quota'] = HunterQuota.get_current_quota()
+        hunter_quota = HunterQuota.get_current_quota()
+        if now - hunter_quota.last_updated > refresh_threshold:
+            try:
+                from leadtrail.portal.utils.hunter_client import HunterClient
+                from decimal import Decimal
+                client = HunterClient()
+                balance_data = client.check_api_quota()
+                if balance_data:
+                    available_credits = balance_data.get('available_credits', 0.0)
+                    try:
+                        hunter_quota.available_credits = Decimal(str(available_credits))
+                        hunter_quota.save()
+                    except (TypeError, ValueError):
+                        pass
+            except Exception:
+                pass  # Use existing quota data if refresh fails
+        context['hunter_quota'] = hunter_quota
+
         return context
 
 
