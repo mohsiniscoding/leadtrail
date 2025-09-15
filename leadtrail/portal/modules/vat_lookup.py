@@ -5,13 +5,13 @@ VAT Lookup Module
 =================
 
 This module provides functionality for searching VAT numbers by UK company name
-using the vat-lookup.co.uk service with residential rotating proxies.
+using the vat-lookup.co.uk service with Webshare.io residential proxies.
 
 Features:
 - Company name-based VAT lookup
-- Rotating proxy support (Storm Proxies)
+- Webshare.io proxy support (new IP per request)
 - Consistent error handling (always returns structured data)
-- Exponential backoff for rate limiting and soft blocks
+- Simple retry logic for request failures
 - Intelligent company name sanitization and retry logic
 - Exact matching for multiple results
 """
@@ -86,7 +86,7 @@ class VATLookupClient:
     """
     VAT Lookup client for searching VAT numbers by UK company name.
     
-    Uses vat-lookup.co.uk service with rotating residential proxies to avoid blocks.
+    Uses vat-lookup.co.uk service with Webshare.io residential proxies (new IP per request).
     Implements consistent error handling - always returns VATData objects.
     
     Usage:
@@ -99,29 +99,21 @@ class VATLookupClient:
         Initialize VAT lookup client with proxy configuration.
         
         Raises:
-            ValueError: If STORM_PROXIES_ROTATING_PROXIES environment variable is not set
+            ValueError: If WEBSHARE_PROXY_URL environment variable is not set
         """
         self.base_url = "https://vat-lookup.co.uk"
         self.search_url = f"{self.base_url}/verify/search.php"
         
         # Proxy configuration
-        self.proxy_host = os.getenv('STORM_PROXIES_ROTATING_PROXIES')
-        if not self.proxy_host:
+        self.proxy_url = os.getenv('WEBSHARE_PROXY_URL')
+        if not self.proxy_url:
             raise ValueError(
-                "STORM_PROXIES_ROTATING_PROXIES environment variable is required for VAT lookup functionality. "
-                "Please set this environment variable with your rotating proxy configuration."
+                "WEBSHARE_PROXY_URL environment variable is required for VAT lookup functionality. "
+                "Please set this environment variable with your Webshare.io proxy URL."
             )
         
-        self.proxy_rotate_min = int(os.getenv('STORM_PROXIES_ROTATE_MIN', 5))
-        
-        # Rate limiting
-        self.last_request_time = 0
-        self.min_request_delay = 3.0  # Minimum 3 seconds between requests
-        
-        # Backoff configuration for soft blocks (IP rotation)
-        self.max_retries = 5
-        self.base_backoff = 30  # Start with 30 seconds for IP rotation
-        self.max_backoff = 300  # Maximum 5 minutes
+        # Simple retry configuration
+        self.max_retries = 3
         
         # Soft block detection patterns
         self.soft_block_patterns = [
@@ -134,7 +126,7 @@ class VATLookupClient:
             "Sorry we were unable to find any matches for your search"
         ]
         
-        logger.info(f"Initialized VAT lookup client with proxy: {self.proxy_host}")
+        logger.info(f"Initialized VAT lookup client with proxy: {self.proxy_url}")
     
     def _get_proxy_config(self) -> Optional[Dict[str, str]]:
         """
@@ -143,14 +135,12 @@ class VATLookupClient:
         Returns:
             Proxy configuration dict or None if no proxy configured
         """
-        if not self.proxy_host:
+        if not self.proxy_url:
             return None
         
-        proxy_url = f"http://{self.proxy_host}"
-        
         return {
-            'http': proxy_url,
-            'https': proxy_url
+            'http': self.proxy_url,
+            'https': self.proxy_url
         }
     
     def _create_session(self) -> requests.Session:
@@ -183,25 +173,10 @@ class VATLookupClient:
         proxy_config = self._get_proxy_config()
         if proxy_config:
             session.proxies.update(proxy_config)
-            logger.debug(f"Session configured with proxy: {self.proxy_host}")
+            logger.debug(f"Session configured with proxy: {self.proxy_url}")
         
         return session
     
-    def _rate_limit(self) -> None:
-        """Implement rate limiting with random jitter."""
-        current_time = time.time()
-        time_since_last = current_time - self.last_request_time
-        
-        if time_since_last < self.min_request_delay:
-            # Add random jitter to avoid predictable patterns
-            sleep_time = self.min_request_delay - time_since_last
-            jitter = random.uniform(0.5, 1.5)  # 0.5 to 1.5 seconds jitter
-            total_sleep = sleep_time + jitter
-            
-            logger.debug(f"Rate limiting: sleeping {total_sleep:.2f} seconds")
-            time.sleep(total_sleep)
-        
-        self.last_request_time = time.time()
     
     def _sanitize_company_name(self, company_name: str) -> List[str]:
         """
@@ -282,7 +257,6 @@ class VATLookupClient:
             HTML response or None if error
         """
         try:
-            self._rate_limit()
             
             # Prepare form data exactly as in the CURL request
             form_data = f'CompanyName={quote_plus(company_name)}'
@@ -456,9 +430,9 @@ class VATLookupClient:
         
         This is the main method that orchestrates the VAT lookup process:
         1. Validates and sanitizes company name with variations
-        2. Makes HTTP requests to VAT lookup service with rotating proxy
+        2. Makes HTTP requests to VAT lookup service with Webshare.io proxy
         3. Handles different response types (soft block, not found, results)
-        4. Implements exponential backoff for IP rotation on soft blocks
+        4. Implements simple retry logic with new IP per request
         5. Performs exact matching for multiple results
         
         Args:
@@ -477,7 +451,7 @@ class VATLookupClient:
             )
         
         original_name = company_name.strip()
-        proxy_info = self.proxy_host if self.proxy_host else "direct"
+        proxy_info = self.proxy_url if self.proxy_url else "direct"
         
         # Generate search variations
         search_variations = self._sanitize_company_name(original_name)
@@ -509,12 +483,7 @@ class VATLookupClient:
                     
                     if not html_response:
                         if attempt < self.max_retries - 1:
-                            backoff_time = min(self.base_backoff * (2 ** attempt), self.max_backoff)
-                            jitter = random.uniform(0.8, 1.2)
-                            total_backoff = backoff_time * jitter
-                            
-                            logger.warning(f"Request failed, backing off {total_backoff:.1f} seconds...")
-                            time.sleep(total_backoff)
+                            logger.warning(f"Request failed, retrying...")
                             continue
                         else:
                             # Try next variation if available
@@ -525,13 +494,7 @@ class VATLookupClient:
                     
                     if response_type == 'soft_block':
                         if attempt < self.max_retries - 1:
-                            # Wait for IP rotation
-                            rotation_wait = self.proxy_rotate_min * 60  # Convert to seconds
-                            jitter = random.uniform(0.8, 1.2)
-                            total_wait = rotation_wait * jitter
-                            
-                            logger.warning(f"Soft block detected, waiting {total_wait:.1f} seconds for IP rotation...")
-                            time.sleep(total_wait)
+                            logger.warning(f"Soft block detected, retrying with new IP...")
                             continue
                         else:
                             # Try next variation if available
@@ -571,8 +534,6 @@ class VATLookupClient:
                 except Exception as e:
                     logger.error(f"Attempt {attempt + 1} failed for variation '{search_term}': {e}")
                     if attempt < self.max_retries - 1:
-                        backoff_time = min(self.base_backoff * (2 ** attempt), self.max_backoff)
-                        time.sleep(backoff_time)
                         continue
                     else:
                         # Try next variation if available

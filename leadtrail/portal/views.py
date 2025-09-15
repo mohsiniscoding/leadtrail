@@ -18,6 +18,7 @@ from leadtrail.exports.contact_extraction import generate_contact_extraction_csv
 from leadtrail.exports.linkedin_finder import generate_linkedin_finder_csv
 from leadtrail.exports.snov_lookup import generate_snov_lookup_csv
 from leadtrail.exports.hunter_lookup import generate_hunter_lookup_csv
+from leadtrail.exports.full_export import generate_full_export_excel
 
 
 @method_decorator(login_required, name='dispatch')
@@ -51,7 +52,8 @@ class CampaignCreateView(TemplateView):
     def get_context_data(self, **kwargs):
         """Add context data to the template."""
         context = super().get_context_data(**kwargs)
-        context['has_existing_campaign'] = Campaign.objects.exists()
+        # context['has_existing_campaign'] = Campaign.objects.exists() ## TODO: uncomment
+        context['has_existing_campaign'] = False ## TODO: remove
         return context
     
     def post(self, request, *args, **kwargs):
@@ -78,10 +80,11 @@ class CampaignCreateView(TemplateView):
             messages.error(request, "At least one valid company number is required.")
             return self.render_to_response(self.get_context_data())
         
+        ## TODO: uncomment
         # Check if a campaign already exists
-        if Campaign.objects.exists():
-            messages.error(request, "You can have 1 campaign running at a time, this is to save resources and database calls on Heroku")
-            return self.render_to_response(self.get_context_data())
+        # if Campaign.objects.exists():
+        #     messages.error(request, "You can have 1 campaign running at a time, this is to save resources and database calls on Heroku")
+        #     return self.render_to_response(self.get_context_data())
             
         # Create campaign
         campaign = Campaign.objects.create(name=name)
@@ -822,6 +825,17 @@ def export_hunter_lookup_csv(request, campaign_id):
     try:
         campaign = Campaign.objects.get(id=campaign_id)
         return generate_hunter_lookup_csv(campaign)
+    except Campaign.DoesNotExist:
+        messages.error(request, "Campaign not found.")
+        return HttpResponseRedirect(reverse('portal:home'))
+
+
+@login_required
+def export_full_excel(request, campaign_id):
+    """Export comprehensive campaign data as Excel file."""
+    try:
+        campaign = Campaign.objects.get(id=campaign_id)
+        return generate_full_export_excel(campaign)
     except Campaign.DoesNotExist:
         messages.error(request, "Campaign not found.")
         return HttpResponseRedirect(reverse('portal:home'))

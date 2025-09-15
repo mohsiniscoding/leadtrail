@@ -25,6 +25,7 @@ urlpatterns = [
     path("export/linkedin-finder/<int:campaign_id>/", views.export_linkedin_finder_csv, name="export_linkedin_finder_csv"),
     path("export/snov-lookup/<int:campaign_id>/", views.export_snov_lookup_csv, name="export_snov_lookup_csv"),
     path("export/hunter-lookup/<int:campaign_id>/", views.export_hunter_lookup_csv, name="export_hunter_lookup_csv"),
+    path("export/full-export/<int:campaign_id>/", views.export_full_excel, name="export_full_excel"),
     path("refresh-zenserp-quota/", views.refresh_zenserp_quota, name="refresh_zenserp_quota"),
     path("refresh-snov-quota/", views.refresh_snov_quota, name="refresh_snov_quota"),
     path("refresh-hunter-quota/", views.refresh_hunter_quota, name="refresh_hunter_quota"),

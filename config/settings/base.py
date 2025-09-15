@@ -335,34 +335,3 @@ ACCOUNT_FORMS = {"signup": "leadtrail.users.forms.UserSignupForm"}
 SOCIALACCOUNT_ADAPTER = "leadtrail.users.adapters.SocialAccountAdapter"
 # https://docs.allauth.org/en/latest/socialaccount/configuration.html
 SOCIALACCOUNT_FORMS = {"signup": "leadtrail.users.forms.UserSocialSignupForm"}
-
-
-## Tasks
-## Schedule tasks to run at different intervals
-from celery.schedules import crontab
-CELERY_BEAT_SCHEDULE = {
-    "companies-house-lookup": {
-        "task": "leadtrail.portal.tasks.task_companies_house_lookup.run",
-        "schedule": 10.0,  # Every 10 seconds
-    },
-    "vat-lookup": {
-        "task": "leadtrail.portal.tasks.task_vat_lookup.run",
-        "schedule": 10.0,  # Every 10 seconds
-    },
-    "website-hunting": {
-        "task": "leadtrail.portal.tasks.task_website_hunting.run",
-        "schedule": 10.0,  # Every 10 seconds
-    },
-    "website-contact-finder": {
-        "task": "leadtrail.portal.tasks.task_website_contact_finder.run",
-        "schedule": crontab(minute="*/5"),  # Every 5 minutes
-    },
-    "linkedin-finder": {
-        "task": "leadtrail.portal.tasks.task_linkedin_finder.run",
-        "schedule": 10.0,  # Every 10 seconds
-    },
-    # "check-zenserp-quota": {
-    #     "task": "leadtrail.portal.tasks.task_check_zenserp_quota.run",
-    #     "schedule": crontab(minute="*/5"),
-    # },
-}

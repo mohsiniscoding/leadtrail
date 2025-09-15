@@ -25,3 +25,4 @@ python-dotenv==1.1.1  # https://github.com/theskumar/python-dotenv
 beautifulsoup4==4.13.4  # https://www.crummy.com/software/BeautifulSoup/
 requests==2.31.0  # https://github.com/psf/requests
 schedule==1.2.2
+openpyxl==3.1.2  # https://github.com/chronossc/openpyxl
