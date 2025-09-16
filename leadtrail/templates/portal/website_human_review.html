@@ -156,8 +156,26 @@
                       {% endif %}
                     </div>
                     {% if domain_result.match_summary %}
-                      <p class="text-sm text-gray-600 mt-1">{{ domain_result.match_summary }}</p>
+                      <p class="text-sm text-gray-600 mt-1">{{ domain_result.match_summary }}
+                        {% if domain_result.company_number_page_url %}
+                          <a href="{{ domain_result.company_number_page_url }}" 
+                             target="_blank" 
+                             rel="noopener noreferrer" 
+                             class="text-blue-600 hover:underline">
+                            {{domain_result.company_number_page_url}}
+                          </a>
+                        {% endif %}
+                        {% if domain_result.vat_number_page_url %}
+                          <a href="{{ domain_result.vat_number_page_url }}" 
+                             target="_blank" 
+                             rel="noopener noreferrer" 
+                             class="text-blue-600 hover:underline">
+                            VAT Number Page
+                          </a>
+                        {% else %}
+                        {% endif %}
                     {% endif %}
+                    </p>
                   </div>
                   
                   {% if not company.website_hunting_result.approved_by_human %}

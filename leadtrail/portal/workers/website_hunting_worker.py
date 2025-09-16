@@ -234,7 +234,9 @@ def _process_website_hunting(company_number_obj: CompanyNumber,
                         'score': result.total_score,
                         'pages_crawled': result.pages_crawled,
                         'status': result.crawl_status,
-                        'match_summary': result.get_match_summary()
+                        'match_summary': result.get_match_summary(),
+                        'company_number_page_url': result.company_number_match.page_url,
+                        'vat_number_page_url': result.vat_number_match.page_url
                     })
                 
                 if ranked_results:
