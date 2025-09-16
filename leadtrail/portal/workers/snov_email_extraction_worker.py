@@ -245,6 +245,17 @@ def run_snov_email_extraction():
             logger.error(error_msg)
             return error_msg
         
+
+        ## check quota
+        quota_data = snov_client.check_api_quota()
+        if not quota_data:
+            logger.error("Failed to retrieve Snov API quota")
+            return "Failed to retrieve Snov API quota"
+        available_credits = quota_data.get('balance', 0)
+        if available_credits < DEFAULT_BATCH_SIZE:
+            logger.error(f"Snov API quota is less than {DEFAULT_BATCH_SIZE} - stopping Snov email extraction")
+            return "Snov API quota is less than {DEFAULT_BATCH_SIZE} - stopping Snov email extraction"
+
         # Process each company
         successful_count = 0
         failed_count = 0

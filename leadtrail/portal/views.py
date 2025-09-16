@@ -913,14 +913,9 @@ def refresh_zenserp_quota(request):
         quota_data = client.check_api_quota()
         
         if not quota_data:
-            logger.error("Failed to retrieve ZenSERP API quota")
-            return JsonResponse({
-                'success': False,
-                'error': "Failed to retrieve ZenSERP API quota"
-            }, status=500)
-        
-        # Extract available credits
-        available_credits = quota_data.get('remaining_requests', 0)
+            available_credits = 0
+        else:
+            available_credits = quota_data.get('remaining_requests', 0)
         
         # Update or create quota record
         quota = ZenSERPQuota.get_current_quota()

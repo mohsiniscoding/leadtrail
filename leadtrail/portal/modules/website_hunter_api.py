@@ -167,6 +167,9 @@ class WebsiteHunterClient:
             if response.status_code == 401:
                 logger.error("API authentication failed - check your API key")
                 return None
+            elif response.status_code == 403:
+                logger.error("API access denied - check your API key")
+                return None
             elif response.status_code == 429:
                 logger.warning("API rate limit exceeded")
                 return None

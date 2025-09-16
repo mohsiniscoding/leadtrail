@@ -52,7 +52,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Configuration
-DEFAULT_BATCH_SIZE = 5
+DEFAULT_BATCH_SIZE = 20
 
 # Global flag for graceful shutdown
 shutdown_requested = False
@@ -308,6 +308,21 @@ def run_website_hunting():
         str: Summary of processing results
     """
     logger.info("Starting website hunting")
+
+    ## check zenserp quota
+    website_hunter_client = WebsiteHunterClient(query_version=2)
+    quota_data = website_hunter_client.check_api_quota()
+    if not quota_data:
+        logger.error("Failed to retrieve ZenSERP API quota")
+        return "Failed to retrieve ZenSERP API quota"
+    else:
+        logger.info(f"ZenSERP API quota: {quota_data}, BATCH SIZE: {DEFAULT_BATCH_SIZE}")
+    available_credits = quota_data.get('remaining_requests', 0)
+    if available_credits < DEFAULT_BATCH_SIZE:
+        logger.error(f"ZenSERP API quota is less than {DEFAULT_BATCH_SIZE} - stopping website hunting")
+        return "ZenSERP API quota is less than {DEFAULT_BATCH_SIZE} - stopping website hunting"
+    
+    
     
     try:
         # Get companies ready for website hunting (VAT lookup completed, oldest first)
@@ -395,7 +410,7 @@ def main():
     signal.signal(signal.SIGTERM, signal_handler)
     
     # Schedule the job to run every 3 minutes
-    schedule.every(3).minutes.do(run_website_hunting)
+    schedule.every(1).minutes.do(run_website_hunting)
     
     # Run immediately on startup
     logger.info("Running initial website hunting...")

@@ -247,6 +247,16 @@ def run_linkedin_finder():
         except ValueError as e:
             logger.error(f"Failed to initialize LinkedIn finder: {str(e)}")
             return f"LinkedIn finder initialization failed: {str(e)}"
+
+        # 
+        quota_data = linkedin_finder.check_api_quota()
+        if not quota_data:
+            logger.error("Failed to retrieve LinkedIn API quota")
+            return "Failed to retrieve LinkedIn API quota"
+        available_credits = quota_data.get('remaining_requests', 0)
+        if available_credits < DEFAULT_BATCH_SIZE:
+            logger.error(f"LinkedIn API quota is less than {DEFAULT_BATCH_SIZE} - stopping LinkedIn search")
+            return "LinkedIn API quota is less than {DEFAULT_BATCH_SIZE} - stopping LinkedIn search"
         
         # Process each company
         successful_count = 0

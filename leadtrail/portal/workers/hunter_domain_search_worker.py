@@ -186,6 +186,16 @@ def run_hunter_domain_search():
             error_msg = f"Hunter authentication failed: {str(auth_error)}"
             logger.error(error_msg)
             return error_msg
+
+        ## check quota
+        quota_data = hunter_client.check_api_quota()
+        if not quota_data:
+            logger.error("Failed to retrieve Hunter API quota")
+            return "Failed to retrieve Hunter API quota"
+        available_credits = quota_data.get('available_credits', 0)
+        if available_credits < DEFAULT_BATCH_SIZE:
+            logger.error(f"Hunter API quota is less than {DEFAULT_BATCH_SIZE} - stopping Hunter domain search")
+            return "Hunter API quota is less than {DEFAULT_BATCH_SIZE} - stopping Hunter domain search"
         
         # Process each company
         successful_count = 0
