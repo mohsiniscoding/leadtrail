@@ -251,7 +251,13 @@ def run_snov_email_extraction():
         if not quota_data:
             logger.error("Failed to retrieve Snov API quota")
             return "Failed to retrieve Snov API quota"
-        available_credits = quota_data.get('balance', 0)
+        balance_str = quota_data.get('balance', '0')
+        try:
+            available_credits = float(balance_str)
+        except (ValueError, TypeError):
+            logger.error(f"Invalid balance format from Snov API: {balance_str}")
+            return f"Invalid balance format from Snov API: {balance_str}"
+
         if available_credits < DEFAULT_BATCH_SIZE:
             logger.error(f"Snov API quota is less than {DEFAULT_BATCH_SIZE} - stopping Snov email extraction")
             return "Snov API quota is less than {DEFAULT_BATCH_SIZE} - stopping Snov email extraction"

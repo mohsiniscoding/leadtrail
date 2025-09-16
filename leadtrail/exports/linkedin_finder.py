@@ -58,25 +58,10 @@ def generate_linkedin_finder_csv(campaign: Campaign) -> HttpResponse:
         linkedin_lookup__isnull=False
     ).select_related('linkedin_lookup').order_by('company_number')
     
-    # Filter companies that have at least one employee URL or company URL
-    companies_with_profiles = []
-    for company in all_companies:
-        linkedin_data = company.linkedin_lookup
-        has_profiles = False
-        
-        # Check if has company URLs
-        if linkedin_data and linkedin_data.company_urls and len(linkedin_data.company_urls) > 0:
-            has_profiles = True
-            
-        # Check if has employee URLs
-        if linkedin_data and linkedin_data.employee_urls and len(linkedin_data.employee_urls) > 0:
-            has_profiles = True
-            
-        if has_profiles:
-            companies_with_profiles.append(company)
+    
     
     # Write data rows
-    for company in companies_with_profiles:
+    for company in all_companies:
         # Safely get LinkedIn data or None if it doesn't exist
         try:
             linkedin_data = company.linkedin_lookup

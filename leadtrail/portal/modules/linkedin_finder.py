@@ -177,14 +177,16 @@ class LinkedInFinder:
         
         self.last_request_time = time.time()
     
-    def _build_linkedin_query(self, company_name: str, website: Optional[str] = None) -> str:
+    def _build_linkedin_query(self, company_name: str, website: Optional[str] = None,
+                             director_names: Optional[List[str]] = None) -> str:
         """
         Build LinkedIn-specific SERP query.
-        
+
         Args:
             company_name: Company name to search for
             website: Optional website domain
-            
+            director_names: Optional list of director names to include in search
+
         Returns:
             Formatted LinkedIn search query string
         """
@@ -203,11 +205,20 @@ class LinkedInFinder:
                 logger.warning(f"Error parsing website '{website}': {e}")
         
         # Build query based on available information
-        if domain:
-            query = f'site:linkedin.com/ "{company_name}" OR "{domain}"'
+        base_query = f'site:linkedin.com "{company_name}"'
+
+        # Add director names if provided
+        if director_names and len(director_names) > 0:
+            # Create OR clause for directors: (director1 OR director2 OR director3)
+            director_clauses = [f'"{name}"' for name in director_names]
+            director_query = f"({' OR '.join(director_clauses)})"
+            query = f'{base_query} {director_query}'
+
+            if len(director_names) == 1:
+                query = f'{base_query} {director_clauses[0]}'
         else:
-            query = f'site:linkedin.com/ "{company_name}"'
-        
+            query = base_query
+
         logger.debug(f"Built LinkedIn query: {query}")
         return query
     
@@ -399,21 +410,23 @@ class LinkedInFinder:
             processing_notes=message
         )
     
-    def find_linkedin_profiles(self, company_name: str, website: Optional[str] = None) -> LinkedInSearchResult:
+    def find_linkedin_profiles(self, company_name: str, website: Optional[str] = None,
+                              director_names: Optional[List[str]] = None) -> LinkedInSearchResult:
         """
         Find LinkedIn company and employee profiles for a given company.
-        
+
         This is the main method that orchestrates the LinkedIn search process:
         1. Validates company name
         2. Builds LinkedIn-specific SERP query
         3. Makes SERP API request
         4. Processes and scores results
         5. Separates company vs employee URLs
-        
+
         Args:
             company_name: Company name to search for
             website: Optional website domain for enhanced matching
-            
+            director_names: Optional list of director names to include in search
+
         Returns:
             LinkedInSearchResult object (never returns None)
         """
@@ -434,7 +447,7 @@ class LinkedInFinder:
         
         try:
             # Build LinkedIn search query
-            query = self._build_linkedin_query(company_name, website)
+            query = self._build_linkedin_query(company_name, website, director_names)
             
             # Make ZenSERP API request
             zenserp_data = self._make_zenserp_request(query)
@@ -514,14 +527,16 @@ def validate_company_name(company_name: str) -> bool:
 
 
 # Convenience function for direct usage
-def find_linkedin_profiles(company_name: str, website: Optional[str] = None) -> LinkedInSearchResult:
+def find_linkedin_profiles(company_name: str, website: Optional[str] = None,
+                          director_names: Optional[List[str]] = None) -> LinkedInSearchResult:
     """
     Convenience function to find LinkedIn profiles for a company.
-    
+
     Args:
         company_name: Company name to search for
         website: Optional website domain for enhanced matching
-        
+        director_names: Optional list of director names to include in search
+
     Returns:
         LinkedInSearchResult object (never returns None - check search_status for success/failure)
     """
@@ -536,7 +551,7 @@ def find_linkedin_profiles(company_name: str, website: Optional[str] = None) -> 
         )
     
     finder = LinkedInFinder()
-    return finder.find_linkedin_profiles(company_name, website)
+    return finder.find_linkedin_profiles(company_name, website, director_names)
 
 
 if __name__ == "__main__":

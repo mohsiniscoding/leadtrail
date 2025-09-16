@@ -18,7 +18,7 @@ import sys
 import time
 import signal
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from pathlib import Path
 
 import schedule
@@ -61,6 +61,49 @@ def signal_handler(signum, frame):
     shutdown_requested = True
 
 
+def _parse_director_names(key_officers: str) -> List[str]:
+    """
+    Parse director names from Companies House key_officers field.
+
+    Args:
+        key_officers: String containing officer information in format:
+                     "LYAPOV, Filip Dimitrov (Director); MITOVA, Milena Mladenova (Director)"
+
+    Returns:
+        List of director names in "First Last" format
+    """
+    if not key_officers:
+        return []
+
+    director_names = []
+
+    # Split by semicolon to get individual officers
+    officers = [officer.strip() for officer in key_officers.split(';')]
+
+    for officer in officers:
+        # Only process Directors
+        if '(Director)' not in officer:
+            continue
+
+        # Extract name part before the designation
+        name_part = officer.split('(Director)')[0].strip()
+
+        # Handle format: "LAST_NAME, First name"
+        if ',' in name_part:
+            parts = name_part.split(',', 1)
+            if len(parts) == 2:
+                last_name = parts[0].strip()
+                first_name = parts[1].strip()
+
+                # Convert to proper case and format as "First Last"
+                full_name = f"{first_name.title()} {last_name.title()}"
+                director_names.append(full_name)
+
+                logger.debug(f"Parsed director: {full_name} from {officer}")
+
+    return director_names
+
+
 def _build_company_data(company_number_obj: CompanyNumber) -> Dict[str, Any]:
     """
     Build company data dict from available sources for LinkedIn search.
@@ -74,14 +117,19 @@ def _build_company_data(company_number_obj: CompanyNumber) -> Dict[str, Any]:
     company_data = {
         'company_number': company_number_obj.company_number,
         'company_name': '',
-        'approved_domain': None
+        'approved_domain': None,
+        'director_names': []
     }
     
-    # Get company name from Companies House data
+    # Get company name and director names from Companies House data
     if hasattr(company_number_obj, 'house_data') and company_number_obj.house_data:
         house_data = company_number_obj.house_data
         if house_data.company_name:
             company_data['company_name'] = house_data.company_name
+
+        # Extract director names from key_officers field
+        if house_data.key_officers:
+            company_data['director_names'] = _parse_director_names(house_data.key_officers)
     
     # Get approved domain from website hunting (if available)
     try:
@@ -94,8 +142,9 @@ def _build_company_data(company_number_obj: CompanyNumber) -> Dict[str, Any]:
         pass
     
     logger.debug(f"Built company data for {company_number_obj.company_number}: "
-                f"name='{company_data['company_name']}', domain='{company_data['approved_domain']}'")
-    
+                f"name='{company_data['company_name']}', domain='{company_data['approved_domain']}', "
+                f"directors={len(company_data['director_names'])}")
+
     return company_data
 
 
@@ -139,11 +188,14 @@ def _process_linkedin_search(company_number_obj: CompanyNumber,
         logger.info(f"Searching LinkedIn for: {company_data['company_name']}")
         if company_data['approved_domain']:
             logger.info(f"Using approved domain for enhanced matching: {company_data['approved_domain']}")
-        
+        if company_data['director_names']:
+            logger.info(f"Including {len(company_data['director_names'])} directors in search: {company_data['director_names']}")
+
         # Perform LinkedIn search
         search_result = linkedin_finder.find_linkedin_profiles(
-            company_data['company_name'], 
-            company_data['approved_domain']
+            company_data['company_name'],
+            company_data['approved_domain'],
+            company_data['director_names']
         )
         
         # Convert LinkedInResult objects to JSON-serializable format
@@ -247,17 +299,7 @@ def run_linkedin_finder():
         except ValueError as e:
             logger.error(f"Failed to initialize LinkedIn finder: {str(e)}")
             return f"LinkedIn finder initialization failed: {str(e)}"
-
-        # 
-        quota_data = linkedin_finder.check_api_quota()
-        if not quota_data:
-            logger.error("Failed to retrieve LinkedIn API quota")
-            return "Failed to retrieve LinkedIn API quota"
-        available_credits = quota_data.get('remaining_requests', 0)
-        if available_credits < DEFAULT_BATCH_SIZE:
-            logger.error(f"LinkedIn API quota is less than {DEFAULT_BATCH_SIZE} - stopping LinkedIn search")
-            return "LinkedIn API quota is less than {DEFAULT_BATCH_SIZE} - stopping LinkedIn search"
-        
+   
         # Process each company
         successful_count = 0
         failed_count = 0
